@@ -1,14 +1,19 @@
-# Integration test — requires a running Weaviate (docker start weaviate) and an ingested corpus.
+# Integration test — requires a running Weaviate (docker start weaviate), the embedding
+# model, and an ingested corpus. Skips cleanly when any of those are unavailable (e.g. CI,
+# where the heavy sentence-transformers/torch extras are intentionally not installed).
 
 import pytest
 
 from app.ai.retriever import retrieve
 
 
-def _weaviate_up() -> bool:
+def _deps_available() -> bool:
     try:
+        import sentence_transformers  # noqa: F401
         import weaviate
-
+    except Exception:
+        return False
+    try:
         client = weaviate.connect_to_local()
         try:
             return client.is_ready()
@@ -18,7 +23,9 @@ def _weaviate_up() -> bool:
         return False
 
 
-pytestmark = pytest.mark.skipif(not _weaviate_up(), reason="Weaviate not running locally")
+pytestmark = pytest.mark.skipif(
+    not _deps_available(), reason="Weaviate and/or sentence-transformers not available"
+)
 
 
 def test_in_corpus_questions_hit_expected_sources():
