@@ -1,0 +1,28 @@
+# Secrets
+.env
+
+# Local tooling / config
+opencode.json
+
+# Notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# Misc
+.DS_Store
+*.log
+.ipynb_checkpoints/
