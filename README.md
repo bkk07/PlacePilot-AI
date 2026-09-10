@@ -36,5 +36,6 @@ cd backend
 pip install -r requirements.txt
 python -m app.ai.ingest   # builds sample corpus + DocumentChunk collection, embeds and inserts
 python -m app.ai.rag_demo  # retrieval + grounded Q&A demo (LLM answers if GROQ_API_KEY set)
+python -m app.agent.cli_demo  # LangGraph agent: 4 workflows + conversation persistence
 uvicorn app.main:app --reload
 ```

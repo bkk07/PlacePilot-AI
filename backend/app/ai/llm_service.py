@@ -109,7 +109,12 @@ def generate_structured(
 ) -> T:
     """Call the LLM, validate output against the schema; on failure retry once with a
     corrective prompt, then raise LLMOutputError. Never returns raw text."""
-    raw = call_llm(messages, config=config, json_schema=schema.model_json_schema())
+    try:
+        raw = call_llm(messages, config=config, json_schema=schema.model_json_schema())
+    except LLMOutputError:
+        # Some model/prompt combos fail Groq's server-side JSON validation (400
+        # json_validate_failed). Fall back to free text — our parser enforces the schema.
+        raw = call_llm(messages, config=config)
     try:
         return parse_structured(raw, schema)
     except (json.JSONDecodeError, ValidationError):
@@ -118,7 +123,6 @@ def generate_structured(
     retry_raw = call_llm(
         messages + [{"role": "user", "content": CORRECTIVE_PROMPT}],
         config=config,
-        json_schema=schema.model_json_schema(),
     )
     try:
         return parse_structured(retry_raw, schema)
