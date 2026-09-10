@@ -1,5 +1,8 @@
 # knowledge-mcp
 
-MCP server for RAG-backed tools (Phase 4): policy Q&A, interview experience search.
+Served from `backend/app/mcp/servers.py` — run with `python -m app.mcp.run knowledge` (port 8103).
 
-Backed by the Weaviate `DocumentChunk` collection; answers must be grounded and cited or declined.
+Tools: `search_policy_docs` (RAG over the Weaviate `DocumentChunk` collection).
+
+Answers must be grounded in retrieved chunks and cited, or declined — the agent never answers policy
+questions from model memory.

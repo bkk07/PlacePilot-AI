@@ -8,9 +8,10 @@ alembic
 psycopg[binary]
 psycopg2-binary
 
-# Auth
+# Auth — bcrypt pinned: passlib 1.7 cannot read bcrypt 4.x version metadata
 python-jose[cryptography]
 passlib[bcrypt]
+bcrypt==3.2.2
 
 # Infra
 redis

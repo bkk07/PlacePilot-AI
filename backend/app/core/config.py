@@ -1,4 +1,4 @@
-# Core config — Phase 0 skeleton. Values come from environment (.env).
+# Core config — values come from the environment (.env).
 
 import os
 
@@ -10,7 +10,7 @@ load_dotenv()
 class Settings:
     PROJECT_NAME: str = "AI Placement Assistant"
 
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+psycopg://placepilot:placepilot@localhost:5432/placepilot")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+psycopg2://placepilot:placepilot@localhost:5433/placepilot")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     WEAVIATE_URL: str = os.getenv("WEAVIATE_URL", "http://localhost:8080")
 

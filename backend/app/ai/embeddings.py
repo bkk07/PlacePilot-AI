@@ -1,14 +1,16 @@
 # Embeddings via local sentence-transformers (no API needed).
+# The model import is lazy so RAG modules can be imported (and unit-tested)
+# without pulling in torch.
 
 from functools import lru_cache
-
-from sentence_transformers import SentenceTransformer
 
 from app.core.config import settings
 
 
 @lru_cache(maxsize=1)
-def get_embedder() -> SentenceTransformer:
+def get_embedder():
+    from sentence_transformers import SentenceTransformer
+
     return SentenceTransformer(settings.EMBEDDING_MODEL)
 
 

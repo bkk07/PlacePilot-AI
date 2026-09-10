@@ -1,5 +1,8 @@
 # placement-mcp
 
-MCP server for placement/admin tools (Phase 4): `search_drives`, `get_drive_details`, `create_drive`, `update_application_status`.
+Served from `backend/app/mcp/servers.py` — run with `python -m app.mcp.run placement` (port 8101).
 
-Every tool re-validates caller identity + role before executing. Backed by PostgreSQL.
+Tools: `search_drives`, `get_drive_details`, `create_drive` (admin), `update_application_status` (admin).
+
+Backed by PostgreSQL. Every call re-verifies the caller's JWT and role, validates inputs with
+Pydantic, and writes an audit row.
