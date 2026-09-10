@@ -28,7 +28,13 @@ docs/           architecture, ER model, security model, eval baselines
 
 ```bash
 cp .env.example .env   # fill in GROQ_API_KEY etc.
+
+# Start Weaviate (local Docker, both ports required by the v4 client)
+docker run -d -p 8080:8080 -p 50051:50051 --name weaviate cr.weaviate.io/semitechnologies/weaviate:latest
+
 cd backend
 pip install -r requirements.txt
+python -m app.ai.ingest   # builds sample corpus + DocumentChunk collection, embeds and inserts
+python -m app.ai.rag_demo  # retrieval + grounded Q&A demo (LLM answers if GROQ_API_KEY set)
 uvicorn app.main:app --reload
 ```

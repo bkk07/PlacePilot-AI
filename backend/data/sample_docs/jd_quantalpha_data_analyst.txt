@@ -1,0 +1,19 @@
+QuantAlpha Analytics — Job Description
+
+Role: Data Analyst (2026 batch)
+Location: Mumbai (on-site)
+Stipend: 35000 rupees per month during the 6-month internship; PPO at 9.5 LPA on conversion.
+
+About: QuantAlpha Analytics provides quantitative research and market-data platforms to institutional clients.
+
+Requirements:
+- Any engineering branch with CGPA 6.5 or above; Mathematics or Statistics coursework preferred
+- SQL is mandatory; Python (pandas) strongly preferred
+- Strong written communication for research notes
+
+Selection Process:
+1. SQL + case-study assessment (45 minutes)
+2. Case interview: market-sizing and data interpretation
+3. Final round with research head
+
+Note: candidates with prior market-data internships are fast-tracked to the case interview.

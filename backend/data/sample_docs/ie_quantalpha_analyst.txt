@@ -1,0 +1,9 @@
+Interview Experience — QuantAlpha Analytics, Data Analyst (Internship), 2025
+
+The assessment was 15 SQL questions and one market-sizing case: estimate daily transactions on a UPI platform. 90 minutes total, calculators allowed.
+
+Round 2 was the case interview. The interviewer gave me a churn dataset and asked what I would investigate first. I walked through cohort analysis and he pushed me to quantify confidence in my conclusions. He cared more about structure than the exact numbers.
+
+The final round with the research head was mostly resume walkthrough plus a discussion on a market event from the previous quarter. He asked how I would validate a data pipeline silently producing wrong aggregates.
+
+Advice: know your resume projects cold, and brush up on percentile math and basic probability. Conversion to the 9.5 LPA PPO required a strong internship review and a final SQL practical.

@@ -18,6 +18,9 @@ redis
 weaviate-client
 groq
 sentence-transformers
+pypdf
+reportlab
+python-dotenv
 langchain
 langgraph
 

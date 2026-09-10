@@ -1,0 +1,19 @@
+Nimbus Software — Job Description
+
+Role: Software Engineer (Fresher, 2026 batch)
+Location: Bangalore (hybrid, 3 days in office)
+CTC: 12 LPA. Internship conversion offers carry a retention bonus of 1 LPA after one year.
+
+About: Nimbus Software builds cloud-native analytics infrastructure used by 400+ enterprise clients.
+
+Requirements:
+- B.E./B.Tech in Computer Science, IT, or ECE with CGPA 7.0 or above
+- Strong Python and data structures; SQL fundamentals
+- Experience with at least one cloud platform (AWS preferred)
+
+Selection Process:
+1. Online assessment: 90 minutes, DSA + SQL + aptitude (October 12, 2026)
+2. Two technical interviews: DSA, system design basics, projects deep-dive
+3. HR discussion
+
+Perks: health insurance for self and dependents, 5000 rupees monthly learning stipend, annual offsite.

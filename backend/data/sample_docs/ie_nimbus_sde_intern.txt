@@ -1,0 +1,9 @@
+Interview Experience — Nimbus Software, Software Engineer (Intern converted to FTE), 2025
+
+The online round had two medium DSA problems (one on sliding window, one on graph BFS) and 10 SQL queries. Around 180 students appeared and 34 were shortlisted.
+
+Technical Round 1 focused purely on DSA. I was asked to implement an LRU cache and then optimize it, followed by a discussion on time complexity. The interviewer asked why I chose a heap in my project's scheduler.
+
+Technical Round 2 was project-heavy. Expect deep questions on anything on your resume. I discussed my REST API's indexing strategy and was asked to sketch a rate limiter.
+
+The HR round was conversational: relocation willingness, why Nimbus, and a discussion of the learning stipend program. The whole process took one week. Tip: practice writing SQL by hand without autocomplete.
