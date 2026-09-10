@@ -16,6 +16,8 @@ IntentKind = Literal[
 class AgentState(TypedDict, total=False):
     # Who is asking — MCP tools re-check authorization against this (Phase 4).
     student_id: str
+    # Caller's JWT — passed through to MCP tools for independent authz checks.
+    token: str
     # Conversation history (LangGraph message reducer appends across turns).
     messages: Annotated[list, add_messages]
     # Set by the intent node.

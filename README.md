@@ -32,10 +32,24 @@ cp .env.example .env   # fill in GROQ_API_KEY etc.
 # Start Weaviate (local Docker, both ports required by the v4 client)
 docker run -d -p 8080:8080 -p 50051:50051 --name weaviate cr.weaviate.io/semitechnologies/weaviate:latest
 
+# Start PostgreSQL (host port 5433 to avoid clashing with a local Postgres)
+docker run -d --name placepilot-postgres -p 5433:5432 \
+  -e POSTGRES_USER=placepilot -e POSTGRES_PASSWORD=placepilot -e POSTGRES_DB=placepilot \
+  postgres:16-alpine
+
 cd backend
 pip install -r requirements.txt
+python -m app.db.seed     # creates schema + seeds demo users, companies, drives, applications
 python -m app.ai.ingest   # builds sample corpus + DocumentChunk collection, embeds and inserts
-python -m app.ai.rag_demo  # retrieval + grounded Q&A demo (LLM answers if GROQ_API_KEY set)
-python -m app.agent.cli_demo  # LangGraph agent: 4 workflows + conversation persistence
+
+# Start the three MCP servers (one-time infra; reuse while they run)
+python -m app.mcp.run placement   # http://127.0.0.1:8101/mcp
+python -m app.mcp.run student     # http://127.0.0.1:8102/mcp
+python -m app.mcp.run knowledge   # http://127.0.0.1:8103/mcp
+
+python -m app.ai.rag_demo     # retrieval + grounded Q&A demo
+python -m app.agent.cli_demo  # LangGraph agent via MCP: 4 workflows, authz negative test, persistence
 uvicorn app.main:app --reload
 ```
+
+MCP servers expose JWT-guarded tools (authz re-checked per call, all calls audit-logged to the `audit_log` table). See [MCP demo](./docs/mcp-demo.md).

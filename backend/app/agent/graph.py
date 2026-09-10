@@ -6,7 +6,6 @@ from typing import Literal
 from langgraph.graph import END, START, StateGraph
 
 from app.agent.state import AgentState
-from app.agent.tools import TOOLS, execute_tool
 from app.ai.llm_service import MODEL_REASONING, generate_structured
 from app.schemas.agent_schemas import IntentClassification, ToolSelection
 
@@ -18,16 +17,18 @@ INTENT_DESCRIPTIONS = """- eligibility_check: the user asks whether they/someone
 
 
 def _catalog_for_intent(intent: str, student_id: str, entities: dict) -> str:
-    """Tool catalog + known entity ids the selection LLM sees — user input never executes here."""
-    from app.agent.seed_data import COMPANIES, DRIVES
+    """Live tool catalog fetched from the MCP servers — user input never executes here."""
+    import asyncio
 
-    lines = [f"- {name}: {spec['description']} args={spec['arg_names']}" for name, spec in TOOLS.items()]
-    lines.append("")
-    lines.append("Known drives:")
-    for d in DRIVES.values():
-        company = COMPANIES[d["company_id"]]["name"]
-        lines.append(f"  {d['id']}: {d['title']} ({company})")
-    lines.append("Known companies: " + ", ".join(f"{c['id']} ({c['name']})" for c in COMPANIES.values()))
+    from app.agent.mcp_client import list_tools
+
+    try:
+        tools = asyncio.run(list_tools(""))
+    except Exception:
+        tools = []
+    lines = [f"- {t['name']}: {t['description']} args={list(t['args'].keys())}" for t in tools]
+    if not lines:
+        lines = ["(no tools available)"]
     return "\n".join(lines)
 
 
@@ -35,6 +36,23 @@ def _last_user_text(state: AgentState) -> str:
     """Latest user message as plain text, regardless of LangGraph message wrapper."""
     msg = state["messages"][-1]
     return msg["content"] if isinstance(msg, dict) else msg.content
+
+
+def _drives_catalog(token: str) -> str:
+    """Live list of open drives (id + title + company) so the planner can emit
+    exact drive_ids instead of inventing ids or leaving placeholders."""
+    import asyncio
+
+    from app.agent.mcp_client import call_tool
+
+    try:
+        result = asyncio.run(call_tool("search_drives", token, {}))
+    except Exception:
+        return "(unavailable)"
+    drives = result.get("drives") if isinstance(result, dict) else None
+    if not drives:
+        return "(none)"
+    return "\n".join(f"  {d['id']}: {d['title']} ({d['company']})" for d in drives)
 
 
 def intent_node(state: AgentState) -> dict:
@@ -64,14 +82,16 @@ def selection_node(state: AgentState) -> dict:
     if intent == "general_chat":
         return {"planned_tools": []}
 
+    token = state.get("token", "")
     system = (
         "You pick tools for a placement assistant. Choose the minimal set of tool calls "
         "needed to answer the question. For the student's own data, always use the "
         f"student_id '{student_id}' — never invent ids. "
-        "Prefer get_drive_details with the exact drive_id when a specific drive is "
-        "referenced; resolve names like 'Nimbus' to ids via search_drives first when unsure. "
+        "When a specific drive is referenced, pass its exact drive_id from the list below "
+        "(never invent or omit a drive_id). "
         "If no tool is needed, return an empty calls list. "
         "Available tools:\n" + _catalog_for_intent(intent, student_id, entities)
+        + "\n\nOpen drives (id: title (company)):\n" + _drives_catalog(token)
     )
     user = (
         f"Intent: {intent}\nExtracted entities: {json.dumps(entities)}\n"
@@ -91,11 +111,39 @@ def selection_node(state: AgentState) -> dict:
     return {"planned_tools": [c.model_dump() for c in result.calls]}
 
 
+def _clean_drive_args(args: dict, entities: dict) -> dict:
+    """Drop placeholder/empty drive identifiers and backfill a drive name hint
+    from the intent entities so check_eligibility can resolve it server-side."""
+    cleaned = dict(args)
+    for key in ("drive_id", "drive"):
+        val = cleaned.get(key)
+        if isinstance(val, str) and ("{{" in val or not val.strip()):
+            cleaned.pop(key, None)
+    if not cleaned.get("drive_id") and not cleaned.get("drive"):
+        for value in entities.values():
+            if isinstance(value, str) and value.strip():
+                cleaned["drive"] = value.strip()
+                break
+    return cleaned
+
+
 def execution_node(state: AgentState) -> dict:
+    import asyncio
+
+    from app.agent.mcp_client import call_tool
+
+    token = state.get("token", "")
+    entities = state.get("entities", {}) or {}
     results = []
     for call in state.get("planned_tools", []):
-        # Tools validate + sanitize their own args; user input is never treated as instruction.
-        results.append({"tool": call["name"], "args": call.get("args", {}), "result": execute_tool(call["name"], call.get("args", {}))})
+        # MCP tools re-validate caller identity/role and sanitize inputs themselves;
+        # failures return a partial answer, never crash the agent run.
+        args = _clean_drive_args(call.get("args", {}), entities)
+        try:
+            result = asyncio.run(call_tool(call["name"], token, args))
+        except Exception as exc:
+            result = {"error": f"tool {call['name']} unavailable: {exc}"}
+        results.append({"tool": call["name"], "args": args, "result": result})
     return {"tool_results": results}
 
 

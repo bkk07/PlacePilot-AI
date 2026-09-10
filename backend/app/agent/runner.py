@@ -15,13 +15,15 @@ def get_graph():
     return _graph
 
 
-def run_turn(user_message: str, student_id: str, thread_id: str) -> dict:
-    """One conversational turn. History persists per thread_id across turns."""
+def run_turn(user_message: str, student_id: str, thread_id: str, token: str = "") -> dict:
+    """One conversational turn. History persists per thread_id across turns.
+    The token is passed through to MCP tools for independent authz checks."""
     graph = get_graph()
     events = graph.invoke(
         {
             "messages": [{"role": "user", "content": user_message}],
             "student_id": student_id,
+            "token": token,
         },
         config={"configurable": {"thread_id": thread_id}},
     )
