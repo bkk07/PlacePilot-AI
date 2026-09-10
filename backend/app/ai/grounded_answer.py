@@ -1,26 +1,7 @@
-# Grounded answering: retrieved chunks -> prompt template -> Groq LLM -> cited answer.
+# Grounded answering: retrieved chunks -> prompt -> Groq LLM -> cited, schema-validated answer.
 
-import os
-
-from groq import Groq
-
-from app.ai.retriever import RetrievedChunk, retrieve
-
-MODEL = os.getenv("GROQ_REASONING_MODEL", "openai/gpt-oss-120b")
-
-SYSTEM_PROMPT = """You are a placement-cell assistant. Answer ONLY from the provided context chunks.
-Rules:
-- Cite sources inline as [source p.N] for every factual claim.
-- If the context does not contain the answer, reply exactly: I don't have that information in the placement documents I was given.
-- Never invent company names, CTC figures, stipends, dates, or selection rounds."""
-
-
-def _build_context(chunks: list[RetrievedChunk]) -> str:
-    parts = []
-    for c in chunks:
-        label = f"{c.company or c.document_type} [{c.source or c.document_id} p.{c.page_number}]"
-        parts.append(f"--- {label} ---\n{c.text}")
-    return "\n\n".join(parts)
+from app.ai.llm_use_cases import answer_policy_question
+from app.ai.retriever import retrieve
 
 
 def answer_question(question: str, top_k: int = 5) -> dict:
@@ -33,21 +14,13 @@ def answer_question(question: str, top_k: int = 5) -> dict:
             "grounded": False,
         }
 
-    client = Groq(api_key=os.environ["GROQ_API_KEY"])
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": f"Context chunks:\n\n{_build_context(chunks)}\n\nQuestion: {question}",
-            },
-        ],
-        temperature=0.1,
-        max_tokens=600,
-    )
+    context = [
+        {"source": c.source or c.document_id, "page_number": c.page_number, "text": c.text}
+        for c in chunks
+    ]
+    result = answer_policy_question(question, context)
     return {
-        "answer": response.choices[0].message.content,
-        "citations": [f"{c.source or c.document_id} p.{c.page_number}" for c in chunks],
-        "grounded": True,
+        "answer": result.answer,
+        "citations": [c.model_dump() for c in result.citations],
+        "grounded": result.grounded,
     }
