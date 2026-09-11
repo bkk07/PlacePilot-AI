@@ -23,7 +23,7 @@ jobs:
       # omitted; tests needing them or live services skip gracefully.
       - name: Install dependencies
         run: |
-          pip install fastapi "uvicorn[standard]" pydantic pydantic-settings pytest httpx \
+          pip install fastapi "uvicorn[standard]" pydantic pydantic-settings email-validator pytest httpx \
             sqlalchemy alembic psycopg2-binary python-dotenv \
             "python-jose[cryptography]" "passlib[bcrypt]" "bcrypt==3.2.2" \
             groq pypdf weaviate-client langchain langgraph "mcp<2" langchain-mcp-adapters
