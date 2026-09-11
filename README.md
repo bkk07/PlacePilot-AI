@@ -39,7 +39,8 @@ docker run -d --name placepilot-postgres -p 5433:5432 \
 
 cd backend
 pip install -r requirements.txt
-python -m app.db.seed     # creates schema + seeds demo users, companies, drives, applications
+python -m alembic upgrade head   # apply migrations (creates all tables)
+python -m app.db.seed     # seeds demo users, companies, drives, applications
 python -m app.ai.ingest   # builds sample corpus + DocumentChunk collection, embeds and inserts
 
 # Start the three MCP servers (one-time infra; reuse while they run)
@@ -50,7 +51,26 @@ python -m app.mcp.run knowledge   # http://127.0.0.1:8103/mcp
 python -m app.ai.rag_demo     # retrieval + grounded Q&A demo
 python -m app.agent.cli_demo  # LangGraph agent via MCP: 4 workflows, authz negative test, persistence
 python -m app.eval.runner     # Phase 5 eval suite -> docs/eval-baseline.md
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload  # API on http://127.0.0.1:8000 (docs at /docs)
 ```
+
+## API
+
+Auth is JWT bearer. Students sign up via `POST /auth/signup` and log in with `POST /auth/login`
+(demo: `asha@college.edu` / `student-pass`, admin `placement@college.edu` / `admin-pass`).
+
+| Area | Endpoints |
+|---|---|
+| Auth | `POST /auth/signup`, `POST /auth/login`, `GET /auth/me` |
+| Student | `GET/PUT /students/me/profile`, `GET /students/me/eligibility/{drive_id}` |
+| Drives | `GET /drives` (filter: `query`, `company`, `role`, `status`), `GET /drives/{id}`, `POST /drives` (admin) |
+| Companies | `GET /companies/{id}` |
+| Applications | `POST /applications`, `GET /applications`, `PATCH /applications/{id}` |
+| AI | `POST /ai/chat` (runs the LangGraph agent end-to-end) |
+
+Every endpoint enforces auth + role server-side; applications follow a strict status state machine
+(`app/services/application_state.py`) with an append-only history and idempotency keys.
+
+Migrations live in `backend/alembic/` (`python -m alembic upgrade head`).
 
 MCP servers expose JWT-guarded tools (authz re-checked per call, all calls audit-logged to the `audit_log` table). See [MCP demo](./docs/mcp-demo.md).

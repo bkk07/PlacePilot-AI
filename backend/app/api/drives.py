@@ -1,0 +1,101 @@
+# Drive APIs: search/filter, detail, and admin creation.
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user, require_role
+from app.db.db import get_db
+from app.db.models import Company, Drive, User
+from app.schemas.api_schemas import DriveCreate, DriveOut
+
+router = APIRouter(prefix="/drives", tags=["drives"])
+
+
+def _drive_out(drive: Drive, company: Company, include_rules: bool = False) -> DriveOut:
+    return DriveOut(
+        id=drive.id,
+        title=drive.title,
+        company=company.name,
+        company_id=company.id,
+        role=drive.role,
+        ctc_lpa=float(drive.ctc_lpa) if drive.ctc_lpa is not None else None,
+        stipend_monthly=float(drive.stipend_monthly) if drive.stipend_monthly is not None else None,
+        location=drive.location,
+        application_deadline=drive.application_deadline,
+        status=drive.status,
+        skills=drive.skills or [],
+        rules=drive.rules if include_rules else None,
+    )
+
+
+@router.get("", response_model=list[DriveOut])
+def list_drives(
+    query: str = Query(default="", max_length=200),
+    company: str = Query(default="", max_length=120),
+    role: str = Query(default="", max_length=120),
+    status_filter: str = Query(default="open", alias="status", max_length=20),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[DriveOut]:
+    stmt = select(Drive, Company).join(Company, Drive.company_id == Company.id)
+    if status_filter:
+        stmt = stmt.where(Drive.status == status_filter)
+    if company:
+        stmt = stmt.where(Company.name.ilike(f"%{company}%"))
+    if role:
+        stmt = stmt.where(Drive.role.ilike(f"%{role}%"))
+
+    out: list[DriveOut] = []
+    for drive, comp in db.execute(stmt).all():
+        if query:
+            haystack = " ".join(
+                [drive.title, drive.role, comp.name, drive.location, " ".join(drive.skills or [])]
+            ).lower()
+            if query.lower() not in haystack:
+                continue
+        out.append(_drive_out(drive, comp))
+    return out
+
+
+@router.get("/{drive_id}", response_model=DriveOut)
+def get_drive(
+    drive_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DriveOut:
+    row = db.execute(
+        select(Drive, Company).join(Company, Drive.company_id == Company.id).where(Drive.id == drive_id)
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="drive not found")
+    return _drive_out(row[0], row[1], include_rules=True)
+
+
+@router.post("", response_model=DriveOut, status_code=status.HTTP_201_CREATED)
+def create_drive(
+    payload: DriveCreate,
+    admin: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+) -> DriveOut:
+    company = db.get(Company, payload.company_id)
+    if company is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="company not found")
+    drive = Drive(
+        company_id=company.id,
+        title=payload.title,
+        role=payload.role,
+        ctc_lpa=payload.ctc_lpa,
+        stipend_monthly=payload.stipend_monthly,
+        location=payload.location,
+        application_deadline=payload.application_deadline,
+        status="open",
+        skills=payload.skills,
+        rules=payload.rules,
+    )
+    db.add(drive)
+    db.commit()
+    db.refresh(drive)
+    return _drive_out(drive, company, include_rules=True)
