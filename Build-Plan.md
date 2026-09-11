@@ -63,7 +63,7 @@ Rule: a role is never trusted from the frontend or from the LLM's interpretation
 **Goal:** Lock every structural decision before writing feature code.
 
 **Step-by-step:**
-1. Write a one-page architecture doc with the flow: Student → Next.js/React → FastAPI → AI Gateway → LangGraph Agent (calling **Groq** for LLM inference) → (RAG via **Weaviate** / MCP / DB Tools) → (**Weaviate** for vectors, **PostgreSQL** for structured data). Explain each arrow in a sentence.
+1. Write a one-page architecture doc with the flow: Student → React (Vite + Tailwind) → FastAPI → AI Gateway → LangGraph Agent (calling **Groq** for LLM inference) → (RAG via **Weaviate** / MCP / DB Tools) → (**Weaviate** for vectors, **PostgreSQL** for structured data). Explain each arrow in a sentence.
 2. Decide the repo layout, e.g.:
    ```
    ai-placement-assistant/
@@ -82,7 +82,7 @@ Rule: a role is never trusted from the frontend or from the LLM's interpretation
    │   ├── placement-mcp/
    │   ├── student-mcp/
    │   └── knowledge-mcp/
-   ├── frontend/            # Next.js app
+   ├── frontend/            # React app (Vite + Tailwind CSS)
    ├── docs/
    └── .github/workflows/
    ```
@@ -216,7 +216,7 @@ Rule: a role is never trusted from the frontend or from the LLM's interpretation
 **Goal:** Give students a usable interface over the MVP backend.
 
 **Step-by-step:**
-1. `npx create-next-app@latest` with TypeScript + Tailwind.
+1. `npm create vite@latest` with React + TypeScript, then add Tailwind CSS.
 2. Build the auth flow (login page, token storage, protected routes).
 3. Build Dashboard, Drive listing (with filters), Drive details page.
 4. Build Profile page (create/edit student profile).

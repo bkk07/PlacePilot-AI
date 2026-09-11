@@ -2,7 +2,7 @@
 
 An AI-first placement assistant for college placement cells: RAG over placement documents, a LangGraph agent, MCP tools, eligibility engine, and a full student/admin app.
 
-**Stack:** Next.js + FastAPI + PostgreSQL + Weaviate (vectors) + Redis + Groq (LLM) + LangGraph + MCP
+**Stack:** React (Vite) + Tailwind CSS + FastAPI + PostgreSQL + Weaviate (vectors) + Redis + Groq (LLM) + LangGraph + MCP
 
 ## Build phases
 
@@ -13,7 +13,7 @@ See [Build-Plan.md](./Build-Plan.md). Guiding order: RAG → LLM → Agent → M
 ```
 backend/        FastAPI app (api, core, models, schemas, services, ai) + alembic + tests
 mcp-servers/    placement-mcp, student-mcp, knowledge-mcp
-frontend/       Next.js app
+frontend/       React app (Vite + Tailwind CSS)
 docs/           architecture, ER model, security model, eval baselines
 .github/        CI workflows
 ```
@@ -52,6 +52,15 @@ python -m app.ai.rag_demo     # retrieval + grounded Q&A demo
 python -m app.agent.cli_demo  # LangGraph agent via MCP: 4 workflows, authz negative test, persistence
 python -m app.eval.runner     # Phase 5 eval suite -> docs/eval-baseline.md
 uvicorn app.main:app --reload  # API on http://127.0.0.1:8000 (docs at /docs)
+```
+
+Frontend (React + Vite + Tailwind CSS):
+
+```bash
+cd frontend
+npm install
+npm run dev     # http://localhost:5173 (proxies /api -> http://127.0.0.1:8000)
+npm run build
 ```
 
 ## API

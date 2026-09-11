@@ -6,7 +6,7 @@
 Student (browser)
     │
     ▼
-Next.js / React frontend
+React frontend (Vite + Tailwind CSS)
     │  HTTP + JWT
     ▼
 FastAPI backend  ──────────────►  PostgreSQL (structured data)
@@ -27,7 +27,7 @@ LangGraph Agent
 
 ## Each arrow, in one sentence
 
-- **Student → Frontend:** the student interacts with a Next.js UI; the browser never talks to the AI stack directly.
+- **Student → Frontend:** the student interacts with a React (Vite) UI; the browser never talks to the AI stack directly.
 - **Frontend → FastAPI:** all requests are HTTPS with a JWT in the `Authorization` header; FastAPI validates and authorizes every request server-side.
 - **FastAPI → PostgreSQL:** structured relational data (users, drives, applications, etc.) via SQLAlchemy ORM with parameterized queries only.
 - **FastAPI → Redis:** session/conversation state and rate limiting, so agent conversations survive restarts.

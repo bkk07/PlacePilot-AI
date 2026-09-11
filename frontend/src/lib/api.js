@@ -1,0 +1,168 @@
+const BASE = import.meta.env.VITE_API_URL ?? '/api'
+
+export const TOKEN_KEY = 'placepilot_token'
+
+export class ApiError extends Error {
+  constructor(status, detail) {
+    super(typeof detail === 'string' ? detail : `Request failed (${status})`)
+    this.status = status
+    this.detail = detail
+  }
+}
+
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setToken(token) {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
+function parseBody(text) {
+  if (!text) return null
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
+
+async function request(path, options = {}) {
+  const headers = { ...(options.headers ?? {}) }
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  if (options.body) headers['Content-Type'] = 'application/json'
+
+  const res = await fetch(`${BASE}${path}`, { ...options, headers })
+  const data = parseBody(await res.text())
+  if (!res.ok) {
+    const detail =
+      data && typeof data === 'object' && 'detail' in data ? data.detail : data
+    throw new ApiError(res.status, detail)
+  }
+  return data
+}
+
+export const api = {
+  signup: (body) => request('/auth/signup', { method: 'POST', body: JSON.stringify(body) }),
+
+  login: (body) => request('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+
+  me: () => request('/auth/me'),
+
+  getProfile: () => request('/students/me/profile'),
+
+  saveProfile: (body) =>
+    request('/students/me/profile', { method: 'PUT', body: JSON.stringify(body) }),
+
+  uploadProfilePhoto: (file) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const token = getToken()
+    const headers = {}
+    if (token) headers.Authorization = `Bearer ${token}`
+    return fetch(`${BASE}/students/me/profile/photo`, { method: 'POST', headers, body: fd }).then(async (res) => {
+      const data = parseBody(await res.text())
+      if (!res.ok) throw new ApiError(res.status, data?.detail ?? data)
+      return data
+    })
+  },
+
+  getProfilePhotoUrl: () => `${BASE}/students/me/profile/photo`,
+
+  checkEligibility: (driveId) => request(`/students/me/eligibility/${driveId}`),
+
+  listDrives: (filters = {}) => {
+    const params = new URLSearchParams()
+    if (filters.query) params.set('query', filters.query)
+    if (filters.company) params.set('company', filters.company)
+    if (filters.role) params.set('role', filters.role)
+    const qs = params.toString()
+    return request(`/drives${qs ? `?${qs}` : ''}`)
+  },
+
+  getDrive: (driveId) => request(`/drives/${driveId}`),
+
+  createDrive: (body) => request('/drives', { method: 'POST', body: JSON.stringify(body) }),
+
+  apply: (driveId) =>
+    request('/applications', {
+      method: 'POST',
+      body: JSON.stringify({ drive_id: driveId }),
+    }),
+
+  listApplications: () => request('/applications'),
+
+  withdraw: (applicationId) =>
+    request(`/applications/${applicationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'withdrawn' }),
+    }),
+
+  chat: (message, threadId) =>
+    request('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, thread_id: threadId }),
+    }),
+
+  // — TNPC domain (new) —
+  listCompanies: () => request('/companies'),
+  createCompany: (body) => request('/companies', { method: 'POST', body: JSON.stringify(body) }),
+  getCompany: (id) => request(`/companies/${id}`),
+
+  listJobPositions: (driveId) => request(`/drives/${driveId}/positions`),
+  createJobPosition: (driveId, body) =>
+    request(`/drives/${driveId}/positions`, { method: 'POST', body: JSON.stringify(body) }),
+
+  listSkills: () => request('/skills'),
+  createSkill: (body) => request('/skills', { method: 'POST', body: JSON.stringify(body) }),
+
+  getEligibility: (driveId) => request(`/drives/${driveId}/eligibility-criteria`),
+  saveEligibility: (driveId, body) =>
+    request(`/drives/${driveId}/eligibility-criteria`, { method: 'PUT', body: JSON.stringify(body) }),
+
+  listBranches: () => request('/branches'),
+  getDriveBranches: (driveId) => request(`/drives/${driveId}/branches`),
+  saveDriveBranches: (driveId, branchIds) =>
+    request(`/drives/${driveId}/branches`, { method: 'PUT', body: JSON.stringify({ branch_ids: branchIds }) }),
+
+  getDriveBatches: (driveId) => request(`/drives/${driveId}/batches`),
+  saveDriveBatches: (driveId, years) =>
+    request(`/drives/${driveId}/batches`, { method: 'PUT', body: JSON.stringify({ years }) }),
+
+  listRounds: (driveId) => request(`/drives/${driveId}/rounds`),
+  createRound: (driveId, body) =>
+    request(`/drives/${driveId}/rounds`, { method: 'POST', body: JSON.stringify(body) }),
+
+  listSchedules: (driveId) => request(`/drives/${driveId}/schedules`),
+  createSchedule: (driveId, body) =>
+    request(`/drives/${driveId}/schedules`, { method: 'POST', body: JSON.stringify(body) }),
+
+  listAnnouncements: (driveId) => request(`/drives/${driveId}/announcements`),
+  createAnnouncement: (driveId, body) =>
+    request(`/drives/${driveId}/announcements`, { method: 'POST', body: JSON.stringify(body) }),
+
+  publishDrive: (driveId) => request(`/drives/${driveId}/publish`, { method: 'POST' }),
+  getDrivePipeline: (driveId) => request(`/drives/${driveId}/pipeline`),
+}
+
+export function errorMessage(err) {
+  if (err instanceof ApiError) {
+    const detail = err.detail
+    if (typeof detail === 'string') return detail
+    if (detail && typeof detail === 'object' && 'message' in detail) {
+      return String(detail.message)
+    }
+    if (Array.isArray(detail) && detail.length > 0) {
+      const first = detail[0]
+      if (first?.msg) return first.msg
+    }
+    return `Request failed (${err.status})`
+  }
+  if (err instanceof Error) return err.message
+  return 'Something went wrong'
+}

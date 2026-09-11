@@ -38,6 +38,26 @@ def _last_user_text(state: AgentState) -> str:
     return msg["content"] if isinstance(msg, dict) else msg.content
 
 
+def _history_dicts(state: AgentState) -> list[dict]:
+    """Convert LangGraph message objects into plain {role, content} dicts for the
+    LLM API (Groq rejects anything without a discriminator `role` field)."""
+    out = []
+    for msg in state.get("messages", [])[:-1]:
+        if isinstance(msg, dict):
+            if msg.get("role") in ("user", "assistant", "system"):
+                out.append({"role": msg["role"], "content": msg.get("content", "")})
+            continue
+        role = getattr(msg, "type", None) or getattr(msg, "role", None)
+        content = getattr(msg, "content", "")
+        if role == "human":
+            role = "user"
+        elif role == "ai":
+            role = "assistant"
+        if role in ("user", "assistant", "system"):
+            out.append({"role": role, "content": content if isinstance(content, str) else str(content)})
+    return out
+
+
 def _drives_catalog(token: str) -> str:
     """Live list of open drives (id + title + company) so the planner can emit
     exact drive_ids instead of inventing ids or leaving placeholders."""
@@ -161,7 +181,7 @@ def synthesis_node(state: AgentState) -> dict:
     if not tool_results:
         from app.ai.llm_use_cases import general_chat
 
-        reply = general_chat(question, history=state["messages"][:-1])
+        reply = general_chat(question, history=_history_dicts(state))
         return {"final_reply": reply.reply, "messages": [{"role": "assistant", "content": reply.reply}]}
 
     system = (

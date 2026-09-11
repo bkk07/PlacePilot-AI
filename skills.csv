@@ -1,0 +1,540 @@
+name,category,aliases
+Java,Programming Languages,java
+Python,Programming Languages,python
+JavaScript,Programming Languages,javascript|js
+TypeScript,Programming Languages,typescript|ts
+C,Programming Languages,c
+C++,Programming Languages,cplusplus|cpp
+C#,Programming Languages,csharp|c-sharp
+Go,Programming Languages,go|golang
+Rust,Programming Languages,rust
+Kotlin,Programming Languages,kotlin
+Swift,Programming Languages,swift
+PHP,Programming Languages,php
+Ruby,Programming Languages,ruby
+Scala,Programming Languages,scala
+R,Programming Languages,r
+Dart,Programming Languages,dart
+Bash,Programming Languages,bash|shell
+PowerShell,Programming Languages,powershell
+HTML,Frontend Development,html
+CSS,Frontend Development,css
+React,Frontend Development,react|reactjs
+Next.js,Frontend Development,nextjs|next
+Angular,Frontend Development,angular
+Vue.js,Frontend Development,vue|vuejs
+Svelte,Frontend Development,svelte
+Redux,Frontend Development,redux
+Redux Toolkit,Frontend Development,redux-toolkit
+React Query,Frontend Development,react-query|tanstack-query
+Tailwind CSS,Frontend Development,tailwind|tailwindcss
+Bootstrap,Frontend Development,bootstrap
+Material UI,Frontend Development,mui|material-ui
+Sass,Frontend Development,sass|scss
+Web Accessibility,Frontend Development,a11y|accessibility
+Responsive Design,Frontend Development,responsive-design
+Spring,Backend Development,spring
+Spring Boot,Backend Development,springboot|spring-boot
+Spring MVC,Backend Development,spring-mvc
+Spring Security,Backend Development,spring-security
+Spring Data JPA,Backend Development,spring-data-jpa
+Spring Cloud,Backend Development,spring-cloud
+Hibernate,Backend Development,hibernate
+JPA,Backend Development,jpa
+JDBC,Backend Development,jdbc
+Django,Backend Development,django
+Flask,Backend Development,flask
+FastAPI,Backend Development,fastapi
+Node.js,Backend Development,node|nodejs
+Express.js,Backend Development,express|expressjs
+NestJS,Backend Development,nest|nestjs
+ASP.NET Core,Backend Development,aspnet|aspnet-core
+.NET,Backend Development,dotnet
+Ruby on Rails,Backend Development,rails|ruby-on-rails
+Laravel,Backend Development,laravel
+MySQL,Databases,mysql
+PostgreSQL,Databases,postgres|postgresql
+Oracle,Databases,oracle
+SQL Server,Databases,mssql|sql-server
+SQLite,Databases,sqlite
+MariaDB,Databases,mariadb
+MongoDB,Databases,mongo|mongodb
+Redis,Databases,redis
+Cassandra,Databases,cassandra
+DynamoDB,Databases,dynamodb
+Couchbase,Databases,couchbase
+Neo4j,Databases,neo4j
+Elasticsearch,Databases,elastic|elasticsearch
+SQL,Database Skills,sql
+Database Design,Database Skills,database-design
+Database Indexing,Database Skills,indexing
+Query Optimization,Database Skills,query-optimization
+Database Normalization,Database Skills,normalization
+Transactions,Database Skills,transactions
+ACID,Database Skills,acid
+Stored Procedures,Database Skills,stored-procedures
+Database Replication,Database Skills,replication
+Database Sharding,Database Skills,sharding
+REST API,APIs,rest|rest-api
+GraphQL,APIs,graphql
+gRPC,APIs,grpc
+SOAP,APIs,soap
+WebSockets,APIs,websockets
+OpenAPI,APIs,openapi
+Swagger,APIs,swagger
+API Gateway,APIs,api-gateway
+API Security,APIs,api-security
+API Versioning,APIs,api-versioning
+OAuth 2.0,APIs,oauth|oauth2
+OpenID Connect,APIs,oidc|openid
+JWT,APIs,jwt|json-web-token
+Microservices,Microservices,microservices
+Service Discovery,Microservices,service-discovery
+API Gateway,Microservices,api-gateway
+Circuit Breaker,Microservices,circuit-breaker
+Distributed Systems,Microservices,distributed-systems
+Saga Pattern,Microservices,saga
+CQRS,Microservices,cqrs
+Event-Driven Architecture,Microservices,event-driven
+Service Mesh,Microservices,service-mesh
+OpenFeign,Microservices,feign
+Resilience4j,Microservices,resilience4j
+Eureka,Microservices,eureka
+Apache Kafka,Messaging & Streaming,kafka
+RabbitMQ,Messaging & Streaming,rabbitmq
+Amazon SQS,Messaging & Streaming,sqs
+Amazon SNS,Messaging & Streaming,sns
+Apache Pulsar,Messaging & Streaming,pulsar
+Redis Streams,Messaging & Streaming,redis-streams
+Event Streaming,Messaging & Streaming,event-streaming
+Message Queues,Messaging & Streaming,message-queue
+Docker,DevOps,docker
+Docker Compose,DevOps,docker-compose
+Kubernetes,DevOps,k8s|kubernetes
+Helm,DevOps,helm
+Jenkins,DevOps,jenkins
+GitHub Actions,DevOps,github-actions
+GitLab CI/CD,DevOps,gitlab-ci
+Azure DevOps,DevOps,azure-devops
+CI/CD,DevOps,cicd|continuous-integration|continuous-deployment
+Terraform,DevOps,terraform
+Ansible,DevOps,ansible
+Argo CD,DevOps,argocd|argo-cd
+Prometheus,DevOps,prometheus
+Grafana,DevOps,grafana
+Git,Version Control,git
+GitHub,Version Control,github
+GitLab,Version Control,gitlab
+Bitbucket,Version Control,bitbucket
+Git Branching,Version Control,branching
+Git Merging,Version Control,merging
+Git Rebasing,Version Control,rebasing
+Code Review,Version Control,code-review
+Pull Requests,Version Control,pull-request
+AWS,Cloud Computing,amazon-web-services|aws
+Amazon EC2,Cloud Computing,ec2
+Amazon S3,Cloud Computing,s3
+Amazon RDS,Cloud Computing,rds
+AWS Lambda,Cloud Computing,lambda
+Amazon ECS,Cloud Computing,ecs
+Amazon EKS,Cloud Computing,eks
+Amazon DynamoDB,Cloud Computing,dynamodb
+Amazon CloudFront,Cloud Computing,cloudfront
+Amazon Route 53,Cloud Computing,route53
+Amazon VPC,Cloud Computing,vpc
+AWS IAM,Cloud Computing,iam
+Amazon CloudWatch,Cloud Computing,cloudwatch
+Azure,Cloud Computing,microsoft-azure|azure
+Azure VM,Cloud Computing,azure-vm
+Azure App Service,Cloud Computing,app-service
+Azure Functions,Cloud Computing,azure-functions
+Azure Kubernetes Service,Cloud Computing,aks
+Google Cloud Platform,Cloud Computing,gcp|google-cloud
+Google Compute Engine,Cloud Computing,gce
+Google Cloud Run,Cloud Computing,cloud-run
+Google Kubernetes Engine,Cloud Computing,gke
+BigQuery,Cloud Computing,bigquery
+Linux,Operating Systems,linux
+Ubuntu,Operating Systems,ubuntu
+Unix,Operating Systems,unix
+Windows Server,Operating Systems,windows-server
+Bash,Operating Systems,bash
+Shell Scripting,Operating Systems,shell
+SSH,Operating Systems,ssh
+System Administration,Operating Systems,sysadmin
+Process Management,Operating Systems,process-management
+Computer Networks,Networking,networking
+TCP/IP,Networking,tcp-ip
+HTTP,Networking,http
+HTTPS,Networking,https
+DNS,Networking,dns
+DHCP,Networking,dhcp
+TCP,Networking,tcp
+UDP,Networking,udp
+VPN,Networking,vpn
+Firewall,Networking,firewall
+Load Balancing,Networking,load-balancing
+Proxy Servers,Networking,proxy
+NAT,Networking,nat
+VLAN,Networking,vlan
+Subnetting,Networking,subnetting
+CDN,Networking,cdn
+Data Structures,Computer Science,data-structures|ds
+Algorithms,Computer Science,algorithms|dsa
+Object-Oriented Programming,Computer Science,oop
+Design Patterns,Computer Science,design-patterns
+Operating Systems,Computer Science,os
+Computer Networks,Computer Science,networks
+DBMS,Computer Science,dbms
+Distributed Systems,Computer Science,distributed-systems
+Multithreading,Computer Science,multithreading
+Concurrency,Computer Science,concurrency
+System Design,Computer Science,system-design
+Low Level Design,Computer Science,lld
+High Level Design,Computer Science,hld
+Dynamic Programming,Computer Science,dp
+Problem Solving,Computer Science,problem-solving
+JUnit,Testing,junit
+Mockito,Testing,mockito
+pytest,Testing,pytest
+Jest,Testing,jest
+Selenium,Testing,selenium
+Cypress,Testing,cypress
+Playwright,Testing,playwright
+Postman,Testing,postman
+Testcontainers,Testing,testcontainers
+JMeter,Testing,jmeter
+Gatling,Testing,gatling
+k6,Testing,k6
+Unit Testing,Testing,unit-testing
+Integration Testing,Testing,integration-testing
+End-to-End Testing,Testing,e2e|end-to-end
+Test Automation,Testing,test-automation
+Test Driven Development,Testing,tdd
+Behavior Driven Development,Testing,bdd
+OWASP,Cybersecurity,owasp
+OWASP Top 10,Cybersecurity,owasp-top-10
+Web Application Security,Cybersecurity,web-security
+Application Security,Cybersecurity,appsec
+Network Security,Cybersecurity,network-security
+Cloud Security,Cybersecurity,cloud-security
+API Security,Cybersecurity,api-security
+Secure Coding,Cybersecurity,secure-coding
+Threat Modeling,Cybersecurity,threat-modeling
+Vulnerability Assessment,Cybersecurity,vulnerability-assessment
+Penetration Testing,Cybersecurity,pentesting|penetration-testing
+Ethical Hacking,Cybersecurity,ethical-hacking
+Incident Response,Cybersecurity,incident-response
+Digital Forensics,Cybersecurity,forensics
+Threat Intelligence,Cybersecurity,threat-intelligence
+Security Operations,Cybersecurity,soc
+Security Engineering,Cybersecurity,security-engineering
+Identity and Access Management,Cybersecurity,iam
+Zero Trust,Cybersecurity,zero-trust
+Security Monitoring,Cybersecurity,security-monitoring
+Nmap,Cybersecurity Tools,nmap
+Wireshark,Cybersecurity Tools,wireshark
+Burp Suite,Cybersecurity Tools,burp|burpsuite
+Metasploit,Cybersecurity Tools,metasploit
+OWASP ZAP,Cybersecurity Tools,zap|owasp-zap
+Nessus,Cybersecurity Tools,nessus
+OpenVAS,Cybersecurity Tools,openvas
+Kali Linux,Cybersecurity Tools,kali
+Splunk,Cybersecurity Tools,splunk
+Microsoft Sentinel,Cybersecurity Tools,sentinel
+Wazuh,Cybersecurity Tools,wazuh
+Suricata,Cybersecurity Tools,suricata
+Snort,Cybersecurity Tools,snort
+Ghidra,Cybersecurity Tools,ghidra
+Volatility,Cybersecurity Tools,volatility
+Autopsy,Cybersecurity Tools,autopsy
+Authentication,Cybersecurity,authentication
+Authorization,Cybersecurity,authorization
+RBAC,Cybersecurity,rbac
+ABAC,Cybersecurity,abac
+OAuth 2.0,Cybersecurity,oauth2
+OpenID Connect,Cybersecurity,oidc
+SAML,Cybersecurity,saml
+LDAP,Cybersecurity,ldap
+Active Directory,Cybersecurity,active-directory
+Kerberos,Cybersecurity,kerberos
+Encryption,Cybersecurity,encryption
+Hashing,Cybersecurity,hashing
+AES,Cryptography,aes
+RSA,Cryptography,rsa
+ECC,Cryptography,ecc
+SHA-256,Cryptography,sha256
+HMAC,Cryptography,hmac
+PKI,Cryptography,pki
+Digital Signatures,Cryptography,digital-signatures
+TLS,Cryptography,tls
+SSL,Cryptography,ssl
+Python,Data Science,python
+NumPy,Data Science,numpy
+Pandas,Data Science,pandas
+Matplotlib,Data Science,matplotlib
+Scikit-learn,Data Science,sklearn
+Statistics,Data Science,statistics
+Probability,Data Science,probability
+Data Visualization,Data Science,data-visualization
+Exploratory Data Analysis,Data Science,eda
+Feature Engineering,Data Science,feature-engineering
+Machine Learning,Machine Learning,ml
+Supervised Learning,Machine Learning,supervised-learning
+Unsupervised Learning,Machine Learning,unsupervised-learning
+Reinforcement Learning,Machine Learning,reinforcement-learning
+Regression,Machine Learning,regression
+Classification,Machine Learning,classification
+Clustering,Machine Learning,clustering
+XGBoost,Machine Learning,xgboost
+LightGBM,Machine Learning,lightgbm
+TensorFlow,Machine Learning,tensorflow
+PyTorch,Machine Learning,pytorch
+MLOps,Machine Learning,mlops
+Model Deployment,Machine Learning,model-deployment
+Deep Learning,Deep Learning,deep-learning
+Neural Networks,Deep Learning,neural-networks
+CNN,Deep Learning,convolutional-neural-network
+RNN,Deep Learning,recurrent-neural-network
+LSTM,Deep Learning,lstm
+GRU,Deep Learning,gru
+Transformers,Deep Learning,transformers
+Attention Mechanism,Deep Learning,attention
+Computer Vision,Deep Learning,computer-vision
+Natural Language Processing,Deep Learning,nlp
+Transfer Learning,Deep Learning,transfer-learning
+Generative AI,Artificial Intelligence,genai|generative-ai
+Large Language Models,Artificial Intelligence,llm|llms
+Prompt Engineering,Artificial Intelligence,prompt-engineering
+Retrieval Augmented Generation,Artificial Intelligence,rag
+Embeddings,Artificial Intelligence,embeddings
+Vector Databases,Artificial Intelligence,vector-db|vector-database
+Fine Tuning,Artificial Intelligence,fine-tuning
+AI Agents,Artificial Intelligence,ai-agents
+LangChain,Artificial Intelligence,langchain
+LlamaIndex,Artificial Intelligence,llamaindex
+Hugging Face,Artificial Intelligence,huggingface
+Semantic Search,Artificial Intelligence,semantic-search
+Model Evaluation,Artificial Intelligence,model-evaluation
+Apache Spark,Data Engineering,spark
+PySpark,Data Engineering,pyspark
+Apache Airflow,Data Engineering,airflow
+dbt,Data Engineering,dbt
+Databricks,Data Engineering,databricks
+Snowflake,Data Engineering,snowflake
+Data Warehousing,Data Engineering,data-warehouse
+Data Lakes,Data Engineering,data-lake
+ETL,Data Engineering,etl
+ELT,Data Engineering,elt
+Data Pipelines,Data Engineering,data-pipelines
+Apache Flink,Big Data,flink
+Hadoop,Big Data,hadoop
+HDFS,Big Data,hdfs
+Apache Hive,Big Data,hive
+Trino,Big Data,trino
+Presto,Big Data,presto
+Android,Mobile Development,android
+Android SDK,Mobile Development,android-sdk
+Kotlin,Mobile Development,kotlin
+Jetpack Compose,Mobile Development,jetpack-compose
+Android Studio,Mobile Development,android-studio
+Swift,Mobile Development,swift
+SwiftUI,Mobile Development,swiftui
+UIKit,Mobile Development,uikit
+iOS Development,Mobile Development,ios
+Flutter,Mobile Development,flutter
+Dart,Mobile Development,dart
+React Native,Mobile Development,react-native
+Unity,Game Development,unity
+Unreal Engine,Game Development,unreal|ue
+Game Development,Game Development,gamedev
+Game Physics,Game Development,game-physics
+Game AI,Game Development,game-ai
+OpenGL,Game Development,opengl
+DirectX,Game Development,directx
+Arduino,Embedded Systems,arduino
+Raspberry Pi,Embedded Systems,raspberry-pi
+ESP32,Embedded Systems,esp32
+Embedded C,Embedded Systems,embedded-c
+Embedded C++,Embedded Systems,embedded-cpp
+ARM,Embedded Systems,arm
+RTOS,Embedded Systems,rtos
+Embedded Linux,Embedded Systems,embedded-linux
+MQTT,Embedded Systems,mqtt
+IoT,Embedded Systems,internet-of-things
+IoT Security,Embedded Systems,iot-security
+Blockchain,Blockchain,blockchain
+Ethereum,Blockchain,ethereum
+Bitcoin,Blockchain,bitcoin
+Solidity,Blockchain,solidity
+Smart Contracts,Blockchain,smart-contracts
+Web3,Blockchain,web3
+DeFi,Blockchain,defi
+Distributed Ledger,Blockchain,distributed-ledger
+Agile,Software Engineering,agile
+Scrum,Software Engineering,scrum
+Kanban,Software Engineering,kanban
+SDLC,Software Engineering,sdlc
+Requirement Analysis,Software Engineering,requirements
+Technical Documentation,Software Engineering,documentation
+Code Review,Software Engineering,code-review
+Debugging,Software Engineering,debugging
+Refactoring,Software Engineering,refactoring
+Clean Code,Software Engineering,clean-code
+Prometheus,Observability,prometheus
+Grafana,Observability,grafana
+OpenTelemetry,Observability,opentelemetry
+Jaeger,Observability,jaeger
+ELK Stack,Observability,elk
+Logstash,Observability,logstash
+Kibana,Observability,kibana
+Datadog,Observability,datadog
+Distributed Tracing,Observability,tracing
+Application Monitoring,Observability,monitoring
+Communication,Soft Skills,communication
+Problem Solving,Soft Skills,problem-solving
+Critical Thinking,Soft Skills,critical-thinking
+Teamwork,Soft Skills,teamwork
+Leadership,Soft Skills,leadership
+Time Management,Soft Skills,time-management
+Presentation,Soft Skills,presentation
+Technical Writing,Soft Skills,technical-writing
+Mentoring,Soft Skills,mentoring
+Collaboration,Soft Skills,collaboration
+Adaptability,Soft Skills,adaptability
+LangGraph,Artificial Intelligence,langgraph
+Model Context Protocol (MCP),Artificial Intelligence,mcp|model-context-protocol|modelcontextprotocol
+Agentic AI,Artificial Intelligence,agentic-ai|agenticai|agentic
+Tool Calling,Artificial Intelligence,tool-calling|toolcalling|tool-use
+Function Calling,Artificial Intelligence,function-calling|functioncalling
+Context Engineering,Artificial Intelligence,context-engineering|contextengineering
+AWS Bedrock,Cloud Computing,aws-bedrock|bedrock
+Google Vertex AI,Cloud Computing,vertex-ai|vertexai|gcp-vertex-ai
+Ollama,Artificial Intelligence,ollama
+vLLM,Artificial Intelligence,vllm
+Pinecone,Databases,pinecone-vector-db
+Qdrant,Databases,qdrant-vector-db
+pgvector,Databases,pg-vector|postgres-vector
+DevSecOps,DevOps,dev-sec-ops|devsecops
+SAST,Cybersecurity,static-analysis|static-application-security-testing
+DAST,Cybersecurity,dynamic-application-security-testing
+Contract Testing,Testing,contract-testing|consumer-driven-contracts|pact
+Istio,DevOps,istio-service-mesh|service-mesh
+OpenTofu,DevOps,opentofu|tofu|terraform-fork
+GitHub Copilot,Artificial Intelligence,github-copilot|copilot
+Agentic Workflows,Artificial Intelligence,agentic-workflows|agentic-workflow
+AI Orchestration,Artificial Intelligence,ai-orchestration
+Structured Outputs,Artificial Intelligence,structured-outputs
+Multimodal AI,Artificial Intelligence,multimodal-ai|multimodal
+Vision Language Models,Artificial Intelligence,vlm|vision-language-models
+AI Guardrails,Artificial Intelligence,ai-guardrails|guardrails
+AI Safety,Artificial Intelligence,ai-safety
+LLM Observability,Artificial Intelligence,llm-observability
+Azure AI Foundry,Cloud Computing,azure-ai-foundry|ai-foundry
+OpenAI API,Artificial Intelligence,openai|openai-api
+Anthropic API,Artificial Intelligence,anthropic|anthropic-api
+Google Gemini,Artificial Intelligence,gemini|google-gemini
+Azure OpenAI,Artificial Intelligence,azure-openai
+Model Context Protocol Servers,Artificial Intelligence,mcp-servers|mcp-server
+MCP Clients,Artificial Intelligence,mcp-clients|mcp-client
+AI Workflows,Artificial Intelligence,ai-workflows
+AI Agent Development,Artificial Intelligence,ai-agent-development
+Hybrid Search,Artificial Intelligence,hybrid-search
+LoRA,Artificial Intelligence,lora
+QLoRA,Artificial Intelligence,qlora
+Weaviate,Databases,weaviate|weaviate-vector-db
+Milvus,Databases,milvus|milvus-vector-db
+ChromaDB,Databases,chroma|chromadb
+FAISS,Databases,faiss
+OpenSearch,Search,opensearch
+Apache Solr,Search,solr|apache-solr
+WebFlux,Backend Development,spring-webflux|webflux
+Reactive Programming,Backend Development,reactive-programming|reactive
+Netty,Backend Development,netty
+Vert.x,Backend Development,vertx|vert.x
+Quarkus,Backend Development,quarkus
+Micronaut,Backend Development,micronaut
+Apache Tomcat,Backend Development,tomcat|apache-tomcat
+Event Sourcing,System Design,event-sourcing
+Strangler Pattern,System Design,strangler-pattern|strangler-fig
+Bulkhead Pattern,System Design,bulkhead|bulkhead-pattern
+Leader Election,System Design,leader-election
+Consensus Algorithms,System Design,consensus|consensus-algorithms
+CAP Theorem,System Design,cap-theorem
+Backpressure,System Design,backpressure
+Domain-Driven Design,System Design,ddd|domain-driven-design
+Hexagonal Architecture,System Design,hexagonal|ports-and-adapters
+Clean Architecture,System Design,clean-architecture
+Fault Tolerance,System Design,fault-tolerance
+High Availability,System Design,ha|high-availability
+Linkerd,DevOps,linkerd|service-mesh
+Kustomize,DevOps,kustomize
+Kubernetes Operators,DevOps,k8s-operators|kubernetes-operators
+Cloud Native,DevOps,cloud-native
+Pulumi,DevOps,pulumi
+AWS CDK,DevOps,aws-cdk|cdk
+AWS CloudFormation,DevOps,cloudformation|aws-cloudformation
+Tekton,DevOps,tekton
+Spinnaker,DevOps,spinnaker
+Grafana Loki,Observability,loki|grafana-loki
+Grafana Tempo,Observability,tempo|grafana-tempo
+Zipkin,Observability,zipkin
+New Relic,Observability,new-relic|newrelic
+Elastic APM,Observability,elastic-apm
+DevSecOps,Cybersecurity,dev-sec-ops|devsecops
+SCA,Cybersecurity,sca|software-composition-analysis
+SOAR,Cybersecurity,soar|security-orchestration-automation-response
+EDR,Cybersecurity,edr|endpoint-detection-response
+XDR,Cybersecurity,xdr|extended-detection-response
+OWASP API Security,Cybersecurity,owasp-api-security|api-security
+Container Security,Cybersecurity,container-security
+Kubernetes Security,Cybersecurity,kubernetes-security|k8s-security
+Security Code Review,Cybersecurity,security-code-review
+Privileged Access Management,Cybersecurity,pam|privileged-access-management
+Secrets Management,Cybersecurity,secrets-management
+Software Supply Chain Security,Cybersecurity,software-supply-chain-security
+Container Scanning,Cybersecurity,container-scanning
+Security Information and Event Management,Cybersecurity,siem
+Security Orchestration Automation and Response,Cybersecurity,soar
+Endpoint Detection and Response,Cybersecurity,edr
+Extended Detection and Response,Cybersecurity,xdr
+API Testing,Testing,api-testing
+Property-Based Testing,Testing,property-testing|property-based-testing
+Mutation Testing,Testing,mutation-testing
+Performance Testing,Testing,performance-testing
+Vite,Frontend Development,vite
+Webpack,Frontend Development,webpack
+Babel,Frontend Development,babel
+ESLint,Frontend Development,eslint
+Prettier,Frontend Development,prettier
+Storybook,Frontend Development,storybook
+Three.js,Frontend Development,threejs|three.js
+WebGL,Frontend Development,webgl
+WebAssembly,Frontend Development,wasm|webassembly
+Progressive Web Apps,Frontend Development,pwa|progressive-web-apps
+Kotlin Multiplatform,Mobile Development,kmp|kotlin-multiplatform
+Expo,Mobile Development,expo|expo-react-native
+CockroachDB,Databases,cockroachdb
+Supabase,Backend Platforms,supabase
+Firestore,Firebase,firestore
+Firebase Authentication,Firebase,firebase-auth|firebase-authentication
+Cursor,Developer Tools,cursor
+Claude Code,Developer Tools,claude-code
+AI-Assisted Development,Developer Tools,ai-assisted-development|ai-development
+Code Generation,Developer Tools,code-generation
+Automated Code Review,Developer Tools,automated-code-review|ai-code-review
+Apache Beam,Data Engineering,beam|apache-beam
+Apache NiFi,Data Engineering,nifi|apache-nifi
+Delta Lake,Data Engineering,delta-lake
+Apache Iceberg,Data Engineering,iceberg|apache-iceberg
+Apache Hudi,Data Engineering,hudi|apache-hudi
+Web3.js,Blockchain,web3js|web3.js
+Ethers.js,Blockchain,ethers|ethers.js
+Hardhat,Blockchain,hardhat
+Foundry,Blockchain,foundry
+API Design,APIs,api-design
+Distributed Caching,System Design,distributed-caching
+Rate Limiting,System Design,rate-limiting
+Load Testing,Testing,load-testing
+Continuous Integration,DevOps,continuous-integration|ci
+Continuous Delivery,DevOps,continuous-delivery|cd
