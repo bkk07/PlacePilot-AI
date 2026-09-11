@@ -4,7 +4,10 @@
 # raw text is NEVER returned downstream as if it were structured data.
 
 import json
-from dataclasses import dataclass
+import threading
+import time
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import TypeVar
 
@@ -16,14 +19,87 @@ from app.core.config import settings
 T = TypeVar("T", bound=BaseModel)
 
 
+@dataclass
+class UsageRecord:
+    model: str
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    calls: int = 0
+
+
+@dataclass
+class UsageTracker:
+    """Accumulates token usage per model for one measured operation (e.g. an eval run)."""
+
+    records: dict[str, UsageRecord] = field(default_factory=dict)
+
+    def add(self, model: str, prompt_tokens: int, completion_tokens: int) -> None:
+        rec = self.records.setdefault(model, UsageRecord(model=model))
+        rec.prompt_tokens += prompt_tokens
+        rec.completion_tokens += completion_tokens
+        rec.calls += 1
+
+    @property
+    def total_prompt_tokens(self) -> int:
+        return sum(r.prompt_tokens for r in self.records.values())
+
+    @property
+    def total_completion_tokens(self) -> int:
+        return sum(r.completion_tokens for r in self.records.values())
+
+    @property
+    def total_calls(self) -> int:
+        return sum(r.calls for r in self.records.values())
+
+    def summary(self) -> dict:
+        return {
+            "models": {m: vars(r) for m, r in self.records.items()},
+            "prompt_tokens": self.total_prompt_tokens,
+            "completion_tokens": self.total_completion_tokens,
+            "total_tokens": self.total_prompt_tokens + self.total_completion_tokens,
+            "calls": self.total_calls,
+        }
+
+
+_usage_state = threading.local()
+
+
+@contextmanager
+def track_usage():
+    """Collect token usage from all LLM calls made inside the block."""
+    tracker = UsageTracker()
+    _usage_state.tracker = tracker
+    try:
+        yield tracker
+    finally:
+        _usage_state.tracker = None
+
+
+def _record_usage(model: str, response) -> None:
+    tracker = getattr(_usage_state, "tracker", None)
+    if tracker is None:
+        return
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    tracker.add(
+        model,
+        getattr(usage, "prompt_tokens", 0) or 0,
+        getattr(usage, "completion_tokens", 0) or 0,
+    )
+
+
 class LLMOutputError(Exception):
     """Raised when the LLM fails to produce schema-valid output after one retry."""
 
 
 def _is_transient(exc: Exception) -> bool:
-    """4xx client errors (bad request, invalid model) are deterministic — retrying cannot fix them."""
+    """429 (rate limit) and 5xx/network errors are worth retrying; other 4xx are
+    deterministic (bad request, invalid model) — retrying cannot fix them."""
     status = getattr(exc, "status_code", None)
     if status is not None:
+        if status == 429:
+            return True
         return not (400 <= status < 500)
     return True  # network/timeout errors with no status — assume transient
 
@@ -69,11 +145,12 @@ def call_llm(
     messages: list[dict],
     config: ModelConfig = MODEL_REASONING,
     json_schema: dict | None = None,
-    max_retries: int = 1,
+    max_retries: int = 2,
 ) -> str:
-    """One Groq chat call with timeout + transient-error retry. Returns raw content."""
+    """One Groq chat call with timeout + transient-error retry (exponential backoff).
+    429 rate limits and 5xx/network errors are retried; other 4xx fail fast."""
     last_exc: Exception | None = None
-    for attempt in range(2):  # transient network/5xx retry
+    for attempt in range(max_retries + 1):
         try:
             kwargs = {
                 "model": config.name,
@@ -85,11 +162,13 @@ def call_llm(
             if json_schema is not None:
                 kwargs["response_format"] = {"type": "json_object"}
             response = get_groq_client().chat.completions.create(**kwargs)
+            _record_usage(config.name, response)
             return response.choices[0].message.content or ""
         except Exception as exc:
             last_exc = exc
             if not _is_transient(exc) or attempt == max_retries:
                 break
+            time.sleep(min(1.5 * (2**attempt), 10.0))
     raise LLMOutputError(f"LLM call failed after retry: {last_exc}")
 
 

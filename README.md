@@ -49,6 +49,7 @@ python -m app.mcp.run knowledge   # http://127.0.0.1:8103/mcp
 
 python -m app.ai.rag_demo     # retrieval + grounded Q&A demo
 python -m app.agent.cli_demo  # LangGraph agent via MCP: 4 workflows, authz negative test, persistence
+python -m app.eval.runner     # Phase 5 eval suite -> docs/eval-baseline.md
 uvicorn app.main:app --reload
 ```
 

@@ -1,0 +1,213 @@
+[
+  {
+    "id": "stipend-01",
+    "type": "stipend_lookup",
+    "question": "What is the stipend for the QuantAlpha internship?",
+    "expected_contains": ["35,000", "35000"],
+    "expected_source": "jd_quantalpha_data_analyst.txt",
+    "expect_decline": false
+  },
+  {
+    "id": "stipend-02",
+    "type": "stipend_lookup",
+    "question": "How much does the Nimbus DevOps intern get paid per month?",
+    "expect_decline": true,
+    "note": "Known gap: the DevOps intern stipend (25k) lives only in the Postgres drive row, not in any ingested document, so the RAG path correctly declines. Closing this needs a DB-backed stipend tool (Phase 8)."
+  },
+  {
+    "id": "stipend-03",
+    "type": "stipend_lookup",
+    "question": "What is the lowest internship stipend the placement cell allows without justification?",
+    "expected_contains": ["10000", "10,000"],
+    "expected_source": "placement_policy_2026.pdf",
+    "expect_decline": false
+  },
+  {
+    "id": "branch-01",
+    "type": "eligible_branches",
+    "question": "Which branches are eligible for the Nimbus Software Engineer drive?",
+    "expected_contains": ["CSE", "IT", "ECE"],
+    "expected_source": "jd_nimbus_software_engineer.txt",
+    "expect_decline": false
+  },
+  {
+    "id": "branch-02",
+    "type": "eligible_branches",
+    "question": "Is the QuantAlpha Data Analyst role open to all engineering branches?",
+    "expected_contains": [["any", "all", "no branch", "not restrict", "unrestricted"]],
+    "expected_source": "jd_quantalpha_data_analyst.txt",
+    "expect_decline": false
+  },
+  {
+    "id": "elig-01",
+    "type": "am_i_eligible",
+    "question": "Am I eligible for the Nimbus Software Engineer drive?",
+    "student_id": "asha@college.edu",
+    "expected_decision": true,
+    "expected_contains": ["eligible"],
+    "expect_decline": false
+  },
+  {
+    "id": "elig-02",
+    "type": "am_i_eligible",
+    "question": "Am I eligible for the Nimbus Software Engineer drive?",
+    "student_id": "rohan@college.edu",
+    "expected_decision": false,
+    "expected_contains": ["CGPA", "not eligible"],
+    "expect_decline": false
+  },
+  {
+    "id": "elig-03",
+    "type": "am_i_eligible",
+    "question": "Am I eligible for the QuantAlpha Data Analyst drive?",
+    "student_id": "asha@college.edu",
+    "expected_decision": true,
+    "expected_contains": ["eligible"],
+    "expect_decline": false
+  },
+  {
+    "id": "elig-04",
+    "type": "am_i_eligible",
+    "question": "Am I eligible for the QuantAlpha Data Analyst drive?",
+    "student_id": "rohan@college.edu",
+    "expected_decision": false,
+    "expected_contains": ["CGPA", "not eligible"],
+    "expect_decline": false
+  },
+  {
+    "id": "why-01",
+    "type": "why_not_eligible",
+    "question": "Why am I not eligible for the Nimbus Software Engineer drive?",
+    "student_id": "rohan@college.edu",
+    "expected_contains": ["CGPA", "6.2", "7.0"],
+    "expect_decline": false
+  },
+  {
+    "id": "why-02",
+    "type": "why_not_eligible",
+    "question": "Why am I not eligible for the QuantAlpha Data Analyst drive?",
+    "student_id": "rohan@college.edu",
+    "expected_contains": ["CGPA", "6.2", "6.5"],
+    "expect_decline": false
+  },
+  {
+    "id": "ctc-01",
+    "type": "cross_company_ctc",
+    "question": "Compare the CTC offered by Nimbus and QuantAlpha.",
+    "expected_contains": ["12", "9.5"],
+    "expect_decline": false
+  },
+  {
+    "id": "ctc-02",
+    "type": "cross_company_ctc",
+    "question": "Which company offers the higher CTC, Nimbus or QuantAlpha?",
+    "expected_contains": ["Nimbus"],
+    "expect_decline": false
+  },
+  {
+    "id": "ctc-03",
+    "type": "cross_company_ctc",
+    "question": "What is the CTC for the Nimbus Software Engineer role?",
+    "expected_contains": ["12"],
+    "expected_source": "jd_nimbus_software_engineer.txt",
+    "expect_decline": false
+  },
+  {
+    "id": "policy-01",
+    "type": "policy_question",
+    "question": "How many active backlogs are allowed to stay eligible for placement?",
+    "expected_contains": [["one", "1"]],
+    "expected_source": "placement_policy_2026.pdf",
+    "expect_decline": false
+  },
+  {
+    "id": "policy-02",
+    "type": "policy_question",
+    "question": "What is the minimum CGPA for campus placement eligibility?",
+    "expected_contains": ["6.0"],
+    "expected_source": "placement_policy_2026.pdf",
+    "expect_decline": false
+  },
+  {
+    "id": "policy-03",
+    "type": "policy_question",
+    "question": "How long do students have to accept or decline an offer?",
+    "expected_contains": [["5", "five"], "working days"],
+    "expected_source": "placement_policy_2026.pdf",
+    "expect_decline": false
+  },
+  {
+    "id": "policy-04",
+    "type": "policy_question",
+    "question": "What happens if a student receives a third offer?",
+    "expected_contains": ["forfeit", ["two", "earlier"]],
+    "expected_source": "placement_policy_2026.pdf",
+    "expect_decline": false
+  },
+  {
+    "id": "policy-05",
+    "type": "policy_question",
+    "question": "What is the registration deadline for the placement cell?",
+    "expected_contains": [["30 august", "august 30"]],
+    "expected_source": "placement_policy_2026.pdf",
+    "expect_decline": false
+  },
+  {
+    "id": "policy-06",
+    "type": "policy_question",
+    "question": "What are the rules about sharing company assessment material?",
+    "expected_contains": ["disqualif"],
+    "expected_source": "placement_policy_2026.pdf",
+    "expect_decline": false
+  },
+  {
+    "id": "process-01",
+    "type": "selection_process",
+    "question": "What does the Nimbus selection process look like?",
+    "expected_contains": ["online assessment", "technical", "HR"],
+    "expected_source": "jd_nimbus_software_engineer.txt",
+    "expect_decline": false
+  },
+  {
+    "id": "process-02",
+    "type": "selection_process",
+    "question": "What rounds does the QuantAlpha Data Analyst hiring process have?",
+    "expected_contains": ["SQL", "case", "research"],
+    "expected_source": "jd_quantalpha_data_analyst.txt",
+    "expect_decline": false
+  },
+  {
+    "id": "interview-01",
+    "type": "interview_experience",
+    "question": "What was asked in the Nimbus SDE technical interviews?",
+    "expected_contains": ["LRU", ["data-structures", "data structures", "dsa"]],
+    "expected_source": "ie_nimbus_sde_intern.txt",
+    "expect_decline": false
+  },
+  {
+    "id": "recommend-01",
+    "type": "recommendation",
+    "question": "Which drives should I apply to?",
+    "student_id": "asha@college.edu",
+    "expected_contains": ["Nimbus", "QuantAlpha"],
+    "expect_decline": false
+  },
+  {
+    "id": "out-01",
+    "type": "out_of_corpus",
+    "question": "What is the capital of France?",
+    "expect_decline": true
+  },
+  {
+    "id": "out-02",
+    "type": "out_of_corpus",
+    "question": "Does TCS hire from our campus this year?",
+    "expect_decline": true
+  },
+  {
+    "id": "out-03",
+    "type": "out_of_corpus",
+    "question": "What is the CEO's home address?",
+    "expect_decline": true
+  }
+]
