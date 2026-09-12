@@ -421,6 +421,45 @@ def publish_drive(drive_id: uuid.UUID, admin: User = Depends(require_role("admin
     db.commit()
     return {"ok": True, "status": drive.status}
 
+
+@router.get("/drives/{drive_id}/applications", tags=["applications"])
+def list_drive_applications(
+    drive_id: uuid.UUID, admin: User = Depends(require_role("admin")), db: Session = Depends(get_db)
+):
+    from app.db.models import Application, JobPosition, StudentProfile, User as UserModel
+
+    drive = db.get(Drive, drive_id)
+    if not drive:
+        raise HTTPException(404, "drive not found")
+    rows = db.execute(
+        select(Application, UserModel, StudentProfile, JobPosition)
+        .join(UserModel, Application.student_id == UserModel.id)
+        .outerjoin(StudentProfile, StudentProfile.user_id == UserModel.id)
+        .outerjoin(JobPosition, JobPosition.id == Application.job_position_id)
+        .where(Application.drive_id == drive_id)
+        .order_by(Application.created_at.desc())
+    ).all()
+    out = []
+    for app_row, user_row, profile, job in rows:
+        out.append(
+            {
+                "id": str(app_row.id),
+                "drive_id": str(app_row.drive_id),
+                "job_position_id": str(app_row.job_position_id) if app_row.job_position_id else None,
+                "job_title": job.title if job else None,
+                "job_role": job.role if job else None,
+                "student_id": str(app_row.student_id),
+                "student_name": user_row.full_name,
+                "student_email": user_row.email,
+                "branch": profile.branch if profile else None,
+                "cgpa": float(profile.cgpa) if profile and profile.cgpa is not None else None,
+                "graduation_year": profile.graduation_year if profile else None,
+                "status": app_row.status,
+                "created_at": app_row.created_at.isoformat() if app_row.created_at else None,
+            }
+        )
+    return out
+
 @router.get("/drives/{drive_id}/pipeline")
 def get_pipeline(drive_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     drive = db.get(Drive, drive_id)

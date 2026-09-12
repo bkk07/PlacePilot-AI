@@ -156,6 +156,10 @@ export const api = {
 
   publishDrive: (driveId) => request(`/drives/${driveId}/publish`, { method: 'POST' }),
   getDrivePipeline: (driveId) => request(`/drives/${driveId}/pipeline`),
+
+  listDriveApplications: (driveId) => request(`/drives/${driveId}/applications`),
+  updateApplicationStatus: (appId, status, reason) =>
+    request(`/applications/${appId}`, { method: 'PATCH', body: JSON.stringify({ status, reason }) }),
 }
 
 export function errorMessage(err) {

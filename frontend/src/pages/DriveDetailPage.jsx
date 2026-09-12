@@ -37,6 +37,9 @@ export default function DriveDetailPage() {
   const [companies, setCompanies] = useState([])
   const [savingEdit, setSavingEdit] = useState(false)
   const [publishing, setPublishing] = useState(false)
+  const [applicants, setApplicants] = useState([])
+  const [appsLoading, setAppsLoading] = useState(false)
+  const [updatingId, setUpdatingId] = useState(null)
 
   const checkEligibility = useCallback(async () => {
     if (isAdmin) { setEligibility(null); return }
@@ -132,6 +135,32 @@ export default function DriveDetailPage() {
     }
   }
 
+  const loadApplicants = useCallback(async () => {
+    if (!isAdmin) return
+    setAppsLoading(true)
+    try {
+      const data = await api.listDriveApplications(driveId)
+      setApplicants(Array.isArray(data) ? data : [])
+    } catch (err) {
+      // silently ignore 403 etc for non-admin
+    } finally {
+      setAppsLoading(false)
+    }
+  }, [driveId, isAdmin])
+
+  async function handleAppAction(appId, newStatus) {
+    setUpdatingId(appId); setError(null); setNotice(null)
+    try {
+      await api.updateApplicationStatus(appId, newStatus)
+      setApplicants((prev) => prev.map((a) => a.id === appId ? { ...a, status: newStatus } : a))
+      setNotice(`Application ${newStatus}`)
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -141,6 +170,12 @@ export default function DriveDetailPage() {
         const pos = await api.listJobPositions(driveId).catch(() => [])
         if (!cancelled) setPositions(Array.isArray(pos) ? pos : [])
         await checkEligibility()
+        if (isAdmin) {
+          try {
+            const data = await api.listDriveApplications(driveId)
+            if (!cancelled) setApplicants(Array.isArray(data) ? data : [])
+          } catch {}
+        }
         // fetch my applications to mark applied (students only)
         if (!isAdmin) {
           try {
@@ -424,6 +459,52 @@ export default function DriveDetailPage() {
             )
           })}
         </div>
+      )}
+      {isAdmin && (
+        <Card className="mt-6">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-slate-900">Applicants for this drive ({applicants.length})</h2>
+            <Button onClick={loadApplicants} disabled={appsLoading} className="bg-slate-700 px-3 py-1 text-xs">{appsLoading ? 'Loading…' : 'Refresh'}</Button>
+          </div>
+          {applicants.length === 0 ? (
+            <p className="py-4 text-center text-sm text-slate-500">{appsLoading ? 'Loading…' : 'No students have applied yet.'}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead className="border-b bg-slate-50 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2">Student</th>
+                    <th className="px-3 py-2">Branch / CGPA</th>
+                    <th className="px-3 py-2">Role Applied</th>
+                    <th className="px-3 py-2">Applied On</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {applicants.map((app) => (
+                    <tr key={app.id} className="border-b last:border-0">
+                      <td className="px-3 py-2">
+                        <p className="font-medium text-slate-900">{app.student_name}</p>
+                        <p className="text-xs text-slate-500">{app.student_email}</p>
+                      </td>
+                      <td className="px-3 py-2 text-slate-700">{app.branch || '—'} {app.cgpa != null ? `· ${app.cgpa} CGPA` : ''} <span className="text-xs text-slate-500">{app.graduation_year ? `· ${app.graduation_year}` : ''}</span></td>
+                      <td className="px-3 py-2 text-slate-700">{app.job_title ? `${app.job_title} (${app.job_role})` : '—'}</td>
+                      <td className="px-3 py-2 text-xs text-slate-600">{app.created_at ? new Date(app.created_at).toLocaleDateString() : '—'}</td>
+                      <td className="px-3 py-2"><Badge tone={app.status === 'applied' ? 'slate' : app.status === 'shortlisted' ? 'green' : app.status === 'rejected' ? 'red' : 'amber'}>{app.status}</Badge></td>
+                      <td className="px-3 py-2">
+                        <div className="flex gap-1.5">
+                          <button onClick={() => handleAppAction(app.id, 'shortlisted')} disabled={updatingId === app.id || app.status !== 'applied'} className="rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-40">{updatingId === app.id ? '…' : 'Shortlist'}</button>
+                          <button onClick={() => handleAppAction(app.id, 'rejected')} disabled={updatingId === app.id || app.status !== 'applied'} className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-40">{updatingId === app.id ? '…' : 'Reject'}</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
       )}
     </div>
   )
