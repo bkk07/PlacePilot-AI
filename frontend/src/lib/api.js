@@ -89,6 +89,8 @@ export const api = {
 
   createDrive: (body) => request('/drives', { method: 'POST', body: JSON.stringify(body) }),
 
+  updateDrive: (driveId, body) => request(`/drives/${driveId}`, { method: 'PUT', body: JSON.stringify(body) }),
+
   apply: (driveId, jobPositionId = null) =>
     request('/applications', {
       method: 'POST',
@@ -119,7 +121,12 @@ export const api = {
   createJobPosition: (driveId, body) =>
     request(`/drives/${driveId}/positions`, { method: 'POST', body: JSON.stringify(body) }),
 
-  listSkills: () => request('/skills'),
+  listSkills: (q = '') => {
+    const params = new URLSearchParams()
+    if (q) params.set('q', q)
+    const qs = params.toString()
+    return request(`/skills${qs ? `?${qs}` : ''}`)
+  },
   createSkill: (body) => request('/skills', { method: 'POST', body: JSON.stringify(body) }),
 
   getEligibility: (driveId) => request(`/drives/${driveId}/eligibility-criteria`),

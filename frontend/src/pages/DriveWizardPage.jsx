@@ -6,7 +6,7 @@ import { api, errorMessage } from '../lib/api.js'
 const EMPTY_DRIVE = {
   title: '', description: '', drive_type: 'ON_CAMPUS', mode: 'OFFLINE',
   registration_start: '', registration_end: '', drive_start_date: '', drive_end_date: '',
-  venue: '', meeting_link: '', application_limit: '', instructions: '',
+  application_limit: '', instructions: '',
 }
 const EMPTY_POSITION = {
   title: '', role: '', department: '', employment_type: 'FULL_TIME', openings: '', work_mode: 'ONSITE', job_description: '',
@@ -30,6 +30,7 @@ export default function DriveWizardPage() {
   const [notice, setNotice] = useState(null)
   // enrichments for role
   const [allSkills, setAllSkills] = useState([])
+  const [skillQuery, setSkillQuery] = useState('')
   const [selectedSkills, setSelectedSkills] = useState([]) // [{skill_id, name, mandatory:true, skill_level:''}]
   const [locations, setLocations] = useState([{ city: '', state: '', country: 'India', work_mode: 'ONSITE' }])
   const [intern, setIntern] = useState({ duration_months: '', ppo_available: false, ppo_criteria: '' })
@@ -44,7 +45,18 @@ export default function DriveWizardPage() {
   const [roundForm, setRoundForm] = useState({ name: '', type: 'APTITUDE', sequence: 1 })
 
   useEffect(() => { api.listCompanies().then(setCompanies).catch(() => {}) }, [])
-  useEffect(() => { api.listSkills().then(setAllSkills).catch(() => {}) }, [])
+  useEffect(() => {
+    let cancelled = false
+    // initial empty query loads immediately, otherwise debounce 300ms for backend search
+    if (skillQuery.trim() === '') {
+      api.listSkills('').then((res) => { if (!cancelled) setAllSkills(res) }).catch(() => {})
+      return () => { cancelled = true }
+    }
+    const t = setTimeout(() => {
+      api.listSkills(skillQuery).then((res) => { if (!cancelled) setAllSkills(res) }).catch(() => {})
+    }, 300)
+    return () => { cancelled = true; clearTimeout(t) }
+  }, [skillQuery])
   useEffect(() => {
     if (step === 3 && createdDrive) {
       api.listBranches().then(setBranches).catch(() => {})
@@ -70,18 +82,28 @@ export default function DriveWizardPage() {
 
   async function createDrive(e) {
     e.preventDefault(); setError(null)
-    try {
-      const payload = {
-        ...drive,
-        application_limit: drive.application_limit ? Number(drive.application_limit) : null,
-        registration_start: drive.registration_start || null,
-        registration_end: drive.registration_end || null,
-        drive_start_date: drive.drive_start_date || null,
-        drive_end_date: drive.drive_end_date || null,
-      }
-      const created = await api.createDrive(payload)
-      setCreatedDrive(created); setNotice(`Drive "${created.title}" created — now add job roles.`); setStep(2)
-    } catch (err) { setError(errorMessage(err)) }
+    // Validate required fields; defer actual POST until at least one job is added (transactional creation)
+    if (!drive.company_id) { setError('Company is required'); return }
+    if (!drive.title?.trim()) { setError('Drive Title is required'); return }
+    // Keep payload for deferred creation
+    setNotice(`Drive "${drive.title}" ready — add at least one job role to create it.`)
+    setStep(2)
+  }
+
+  async function ensureDriveCreated() {
+    if (createdDrive) return createdDrive
+    // first time: create drive for real now that we have at least one role
+    const payload = {
+      ...drive,
+      application_limit: drive.application_limit ? Number(drive.application_limit) : null,
+      registration_start: drive.registration_start || null,
+      registration_end: drive.registration_end || null,
+      drive_start_date: drive.drive_start_date || null,
+      drive_end_date: drive.drive_end_date || null,
+    }
+    const created = await api.createDrive(payload)
+    setCreatedDrive(created)
+    return created
   }
 
   function toggleSkill(skill) {
@@ -129,7 +151,10 @@ export default function DriveWizardPage() {
         payload.compensation.stipend_min = null
         payload.compensation.stipend_max = null
       }
-      const created = await api.createJobPosition(createdDrive.id, payload)
+      const isFirstRole = !createdDrive
+      const driveObj = await ensureDriveCreated()
+      if (isFirstRole) setNotice(`Drive "${driveObj.title}" created with first role — add more roles or continue.`)
+      const created = await api.createJobPosition(driveObj.id, payload)
       setPositions((p) => [...p, created]); setNotice(`Role "${created.title}" added (${created.employment_type}).`)
       // reset
       setPosition({ ...EMPTY_POSITION })
@@ -221,9 +246,8 @@ export default function DriveWizardPage() {
               <Field label="Registration Start" type="datetime-local" value={drive.registration_start} onChange={(e) => setDrive({ ...drive, registration_start: e.target.value })} />
               <Field label="Registration End" type="datetime-local" value={drive.registration_end} onChange={(e) => setDrive({ ...drive, registration_end: e.target.value })} />
             </div>
-            <Field label="Venue" value={drive.venue} onChange={(e) => setDrive({ ...drive, venue: e.target.value })} />
-            <Field label="Meeting Link" value={drive.meeting_link} onChange={(e) => setDrive({ ...drive, meeting_link: e.target.value })} />
-            <Button type="submit">Create Drive & Continue</Button>
+            <Button type="submit">Continue to Roles →</Button>
+            <p className="text-xs text-slate-500">Drive will be created when you add the first job role. At least one role is required.</p>
           </form>
         </Card>
       )}
@@ -231,8 +255,8 @@ export default function DriveWizardPage() {
       {step === 2 && (
         <div className="space-y-4">
           <Card>
-            <h2 className="mb-1 font-semibold">2 — Job Roles (multiple per Drive)</h2>
-            <p className="mb-3 text-sm text-slate-600">Drive: <b>{createdDrive?.title}</b> — each role has independent skills, stipend/bond & location. Add one or more.</p>
+            <h2 className="mb-1 font-semibold">2 — Job Roles (multiple per Drive) *</h2>
+            <p className="mb-3 text-sm text-slate-600">Drive: <b>{createdDrive?.title || drive.title || '—'}</b> {createdDrive ? '' : '(not yet created)'} — each role has independent skills, stipend/bond & location. <span className="font-medium text-amber-700">At least one role required to create drive.</span></p>
             <form onSubmit={addPosition} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Role Title *" value={position.title} onChange={(e) => setPosition({ ...position, title: e.target.value })} required placeholder="Software Engineer" />
@@ -293,11 +317,13 @@ export default function DriveWizardPage() {
 
               {/* Skills */}
               <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                <h3 className="text-sm font-semibold mb-2">Required Skills (per role)</h3>
-                <div className="max-h-40 overflow-y-auto grid grid-cols-2 gap-1 text-sm">
-                  {allSkills.slice(0, 120).map((sk) => (
+                <h3 className="text-sm font-semibold mb-2">Required Skills (per role) — search from backend</h3>
+                <Field label="Search skills" value={skillQuery} onChange={(e) => setSkillQuery(e.target.value)} placeholder="Type to search: python, java, sql..." />
+                <div className="mt-2 max-h-40 overflow-y-auto grid grid-cols-2 gap-1 text-sm">
+                  {allSkills.map((sk) => (
                     <label key={sk.id} className="flex items-center gap-2"><input type="checkbox" checked={!!selectedSkills.find((s) => s.skill_id === sk.id)} onChange={() => toggleSkill(sk)} /> {sk.name} <span className="text-xs text-slate500">({sk.category})</span></label>
                   ))}
+                  {allSkills.length === 0 && <p className="col-span-2 py-2 text-center text-xs text-slate-500">No skills found for “{skillQuery}”</p>}
                 </div>
                 {selectedSkills.length > 0 && (
                   <div className="mt-3 space-y-1">
@@ -345,8 +371,9 @@ export default function DriveWizardPage() {
             )}
             <div className="mt-4 flex gap-2">
               <Button onClick={() => setStep(3)} disabled={positions.length === 0} className={positions.length === 0 ? 'opacity-50' : ''}>Next — Eligibility & Batches →</Button>
-              <Button onClick={() => navigate(`/drives/${createdDrive.id}`)} className="bg-slate-600 hover:bg-slate-700">Finish & View Drive</Button>
+              <Button onClick={() => { if (createdDrive) navigate(`/drives/${createdDrive.id}`)}} disabled={!createdDrive || positions.length === 0} className={`bg-slate-600 hover:bg-slate-700 ${(!createdDrive || positions.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}>Finish & View Drive</Button>
             </div>
+            {positions.length === 0 && <p className="mt-2 text-xs font-medium text-red-600">Add at least one role — drive will not be created otherwise.</p>}
           </Card>
         </div>
       )}

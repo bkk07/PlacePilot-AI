@@ -104,13 +104,19 @@ def list_drives(
     query: str = Query(default="", max_length=200),
     company: str = Query(default="", max_length=120),
     role: str = Query(default="", max_length=120),
-    status_filter: str = Query(default="open", alias="status", max_length=20),
+    status_filter: str = Query(default="", alias="status", max_length=20),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[DriveOut]:
+    # Default visibility: students see only open drives, admin/TNPC sees all (including DRAFT)
+    # If no explicit status filter is sent (empty string), apply role-based default
+    effective_status = status_filter
+    if not status_filter:
+        effective_status = "open" if user.role != "admin" else ""
     stmt = select(Drive, Company).join(Company, Drive.company_id == Company.id).order_by(Drive.created_at.desc())
-    if status_filter:
-        stmt = stmt.where(Drive.status == status_filter)
+    if effective_status:
+        stmt = stmt.where(Drive.status == effective_status)
+    # hide DRAFT drives with 0 positions from students even if they somehow have status open? publish guard prevents this
     if company:
         stmt = stmt.where(Company.name.ilike(f"%{company}%"))
     if role:
@@ -177,4 +183,79 @@ def create_drive(
     db.add(drive)
     db.commit()
     db.refresh(drive)
+    return _drive_out(drive, company, db, include_rules=True)
+
+
+@router.put("/{drive_id}", response_model=DriveOut)
+def update_drive(
+    drive_id: uuid.UUID,
+    payload: dict,
+    admin: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+) -> DriveOut:
+    drive = db.get(Drive, drive_id)
+    if drive is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="drive not found")
+
+    # company change
+    if "company_id" in payload and payload["company_id"]:
+        try:
+            new_cid = uuid.UUID(str(payload["company_id"]))
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid company_id")
+        company = db.get(Company, new_cid)
+        if company is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="company not found")
+        drive.company_id = company.id
+
+    # simple scalar fields — only update if present in payload
+    for field in [
+        "title",
+        "description",
+        "drive_type",
+        "mode",
+        "venue",
+        "meeting_link",
+        "instructions",
+        "role",
+        "location",
+        "application_deadline",
+        "status",
+    ]:
+        if field in payload:
+            setattr(drive, field, payload[field])
+
+    for field in ["application_limit"]:
+        if field in payload:
+            val = payload[field]
+            setattr(drive, field, int(val) if val not in (None, "") else None)
+
+    for field in ["ctc_lpa", "stipend_monthly"]:
+        if field in payload:
+            val = payload[field]
+            setattr(drive, field, float(val) if val not in (None, "") else None)
+
+    for field in ["registration_start", "registration_end", "drive_start_date", "drive_end_date"]:
+        if field in payload:
+            val = payload[field]
+            if val in (None, ""):
+                setattr(drive, field, None)
+            else:
+                # accept ISO string
+                from datetime import datetime
+
+                try:
+                    # handle datetime-local without tz
+                    dt = datetime.fromisoformat(str(val).replace("Z", "+00:00"))
+                    setattr(drive, field, dt)
+                except Exception:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid {field}")
+
+    for field in ["skills", "rules"]:
+        if field in payload:
+            setattr(drive, field, payload[field] if payload[field] is not None else ([] if field == "skills" else {}))
+
+    db.commit()
+    db.refresh(drive)
+    company = db.get(Company, drive.company_id)
     return _drive_out(drive, company, db, include_rules=True)

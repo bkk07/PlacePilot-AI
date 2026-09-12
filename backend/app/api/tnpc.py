@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -85,8 +85,15 @@ def update_company(company_id: uuid.UUID, payload: dict, admin: User = Depends(r
 
 # ---------- Skills & Branches ----------
 @router.get("/skills")
-def list_skills(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return [{"id": str(s.id), "name": s.name, "category": s.category} for s in db.execute(select(Skill).order_by(Skill.name)).scalars().all()]
+def list_skills(q: str = Query(default="", max_length=100), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    stmt = select(Skill).order_by(Skill.name)
+    if q:
+        # search by name or category, case-insensitive
+        like = f"%{q.strip()}%"
+        stmt = stmt.where(Skill.name.ilike(like))
+    # limit to 80 for search to keep response snappy
+    stmt = stmt.limit(80)
+    return [{"id": str(s.id), "name": s.name, "category": s.category} for s in db.execute(stmt).scalars().all()]
 
 @router.post("/skills", status_code=201)
 def create_skill(payload: dict, admin: User = Depends(require_role("admin")), db: Session = Depends(get_db)):
@@ -405,7 +412,11 @@ def publish_drive(drive_id: uuid.UUID, admin: User = Depends(require_role("admin
     drive = db.get(Drive, drive_id)
     if not drive:
         raise HTTPException(404, "drive not found")
-    drive.status = "PUBLISHED"
+    # Require at least one job position before publish/open
+    pos_exists = db.execute(select(JobPosition.id).where(JobPosition.drive_id == drive_id).limit(1)).first() is not None
+    if not pos_exists:
+        raise HTTPException(status_code=400, detail="at least one job position required before publishing")
+    drive.status = "open"
     drive.published_at = datetime.utcnow()
     db.commit()
     return {"ok": True, "status": drive.status}

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Badge, Button, Card, ErrorBanner, PageTitle } from '../components/ui.jsx'
+import { Badge, Button, Card, ErrorBanner, Field, PageTitle } from '../components/ui.jsx'
 import { api, ApiError, errorMessage } from '../lib/api.js'
+import { useAuth } from '../context/AuthContext.jsx'
 
 function compLabel(c) {
   if (!c) return '—'
@@ -20,6 +21,8 @@ function compLabel(c) {
 
 export default function DriveDetailPage() {
   const { driveId = '' } = useParams()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [drive, setDrive] = useState(null)
   const [positions, setPositions] = useState([])
   const [eligibility, setEligibility] = useState(null)
@@ -29,18 +32,89 @@ export default function DriveDetailPage() {
   const [loading, setLoading] = useState(true)
   const [applyingId, setApplyingId] = useState(null)
   const [expanded, setExpanded] = useState({})
+  const [isEditing, setIsEditing] = useState(false)
+  const [editForm, setEditForm] = useState(null)
+  const [companies, setCompanies] = useState([])
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const checkEligibility = useCallback(async () => {
+    if (isAdmin) { setEligibility(null); return }
     try {
       setEligibility(await api.checkEligibility(driveId))
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
+      if (err instanceof ApiError && (err.status === 409 || err.status === 403)) {
         setEligibility(null)
       } else {
         setError(errorMessage(err))
       }
     }
-  }, [driveId])
+  }, [driveId, isAdmin])
+
+  function toLocalInput(iso) {
+    if (!iso) return ''
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
+
+  function startEdit() {
+    if (!drive) return
+    setEditForm({
+      company_id: drive.company_id || '',
+      title: drive.title || '',
+      description: drive.description || '',
+      drive_type: drive.drive_type || 'ON_CAMPUS',
+      mode: drive.mode || 'OFFLINE',
+      registration_start: toLocalInput(drive.registration_start),
+      registration_end: toLocalInput(drive.registration_end),
+      application_deadline: drive.application_deadline || '',
+      application_limit: drive.application_limit ?? '',
+      instructions: drive.instructions || '',
+      status: drive.status || 'open',
+    })
+    setIsEditing(true)
+    setError(null)
+    if (companies.length === 0) {
+      api.listCompanies().then(setCompanies).catch(() => {})
+    }
+  }
+
+  function cancelEdit() {
+    setIsEditing(false)
+    setEditForm(null)
+  }
+
+  async function saveEdit(e) {
+    e?.preventDefault()
+    if (!editForm) return
+    setSavingEdit(true)
+    setError(null)
+    try {
+      const payload = {
+        company_id: editForm.company_id || undefined,
+        title: editForm.title?.trim(),
+        description: editForm.description || null,
+        drive_type: editForm.drive_type,
+        mode: editForm.mode,
+        registration_start: editForm.registration_start || null,
+        registration_end: editForm.registration_end || null,
+        application_deadline: editForm.application_deadline || null,
+        application_limit: editForm.application_limit === '' || editForm.application_limit == null ? null : Number(editForm.application_limit),
+        instructions: editForm.instructions || null,
+        status: editForm.status,
+      }
+      if (!payload.title) throw new Error('Title is required')
+      const updated = await api.updateDrive(driveId, payload)
+      setDrive(updated)
+      setIsEditing(false)
+      setNotice('Drive updated.')
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setSavingEdit(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -51,21 +125,22 @@ export default function DriveDetailPage() {
         const pos = await api.listJobPositions(driveId).catch(() => [])
         if (!cancelled) setPositions(Array.isArray(pos) ? pos : [])
         await checkEligibility()
-        // fetch my applications to mark applied
-        try {
-          const apps = await api.listApplications()
-          const map = {}
-          for (const a of apps) {
-            if (a.drive_id === driveId) {
-              // if app has job_position_id, mark that, else mark drive-level
-              // fallback: if no position_id, mark all as applied? we mark drive-level flag
-              // Our backend now includes job_position_id in Application but ApplicationOut doesn't expose it; handle both
-              if (a.job_position_id) map[a.job_position_id] = true
-              else map['__drive__'] = true
+        // fetch my applications to mark applied (students only)
+        if (!isAdmin) {
+          try {
+            const apps = await api.listApplications()
+            const map = {}
+            for (const a of apps) {
+              if (a.drive_id === driveId) {
+                if (a.job_position_id) map[a.job_position_id] = true
+                else map['__drive__'] = true
+              }
             }
-          }
-          if (!cancelled) setAppliedMap(map)
-        } catch {}
+            if (!cancelled) setAppliedMap(map)
+          } catch {}
+        } else {
+          if (!cancelled) setAppliedMap({})
+        }
       } catch (err) {
         if (!cancelled) setError(errorMessage(err))
       } finally {
@@ -76,7 +151,7 @@ export default function DriveDetailPage() {
     return () => {
       cancelled = true
     }
-  }, [driveId, checkEligibility])
+  }, [driveId, checkEligibility, isAdmin])
 
   async function onApply(positionId) {
     setApplyingId(positionId || '__drive__')
@@ -103,14 +178,72 @@ export default function DriveDetailPage() {
       <Link to="/drives" className="text-sm font-medium text-indigo-600 hover:underline">
         ← Back to drives
       </Link>
-      <PageTitle>{drive.title}</PageTitle>
+      <div className="flex items-center justify-between gap-3">
+        <PageTitle>{drive.title}</PageTitle>
+        {isAdmin && !isEditing && (
+          <Button onClick={startEdit} className="shrink-0 bg-slate-800 hover:bg-slate-900">Edit Drive</Button>
+        )}
+        {isAdmin && isEditing && (
+          <div className="flex gap-2">
+            <Button onClick={saveEdit} disabled={savingEdit}>{savingEdit ? 'Saving…' : 'Save'}</Button>
+            <Button onClick={cancelEdit} className="bg-slate-600 hover:bg-slate-700">Cancel</Button>
+          </div>
+        )}
+      </div>
       <ErrorBanner message={error} />
       {notice && (
         <div className="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700">
           {notice}
         </div>
       )}
-      <Card className="mb-4">
+      {isEditing ? (
+        <Card className="mb-4">
+          <h3 className="mb-3 font-semibold text-slate-900">Edit Drive</h3>
+          <form onSubmit={saveEdit} className="space-y-3">
+            <label className="block"><span className="mb-1 block text-sm font-medium">Company *</span>
+              <select value={editForm.company_id} onChange={(e) => setEditForm({ ...editForm, company_id: e.target.value })} className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" required>
+                <option value="">Select company</option>
+                {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </label>
+            <Field label="Title *" value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} required />
+            <Field label="Description" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block"><span className="mb-1 block text-sm font-medium">Drive Type</span>
+                <select value={editForm.drive_type} onChange={(e) => setEditForm({ ...editForm, drive_type: e.target.value })} className="w-full rounded-md border px-3 py-2 text-sm">
+                  <option>ON_CAMPUS</option><option>OFF_CAMPUS</option><option>POOL_CAMPUS</option><option>VIRTUAL</option>
+                </select>
+              </label>
+              <label className="block"><span className="mb-1 block text-sm font-medium">Mode</span>
+                <select value={editForm.mode} onChange={(e) => setEditForm({ ...editForm, mode: e.target.value })} className="w-full rounded-md border px-3 py-2 text-sm">
+                  <option>OFFLINE</option><option>ONLINE</option><option>HYBRID</option>
+                </select>
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Registration Start" type="datetime-local" value={editForm.registration_start} onChange={(e) => setEditForm({ ...editForm, registration_start: e.target.value })} />
+              <Field label="Registration End — extend deadline here" type="datetime-local" value={editForm.registration_end} onChange={(e) => setEditForm({ ...editForm, registration_end: e.target.value })} />
+            </div>
+            <Field label="Application Deadline (YYYY-MM-DD) — extend here" type="date" value={editForm.application_deadline} onChange={(e) => setEditForm({ ...editForm, application_deadline: e.target.value })} />
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Application Limit" type="number" min="1" value={editForm.application_limit} onChange={(e) => setEditForm({ ...editForm, application_limit: e.target.value })} placeholder="Leave blank for unlimited" />
+              <label className="block"><span className="mb-1 block text-sm font-medium">Status — change drive status</span>
+                <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })} className="w-full rounded-md border px-3 py-2 text-sm">
+                  <option value="open">open</option><option value="DRAFT">DRAFT</option><option value="PUBLISHED">PUBLISHED</option><option value="REGISTRATION_OPEN">REGISTRATION_OPEN</option><option value="REGISTRATION_CLOSED">REGISTRATION_CLOSED</option><option value="IN_PROGRESS">IN_PROGRESS</option><option value="COMPLETED">COMPLETED</option><option value="CANCELLED">CANCELLED</option><option value="ARCHIVED">ARCHIVED</option>
+                </select>
+              </label>
+            </div>
+            <label className="block"><span className="mb-1 block text-sm font-medium">Instructions</span>
+              <textarea value={editForm.instructions} onChange={(e) => setEditForm({ ...editForm, instructions: e.target.value })} rows={2} className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="Instructions for students" />
+            </label>
+            <div className="flex gap-2">
+              <Button type="submit" disabled={savingEdit}>{savingEdit ? 'Saving…' : 'Save Changes'}</Button>
+              <Button type="button" onClick={cancelEdit} className="bg-slate-600 hover:bg-slate-700">Cancel</Button>
+            </div>
+          </form>
+        </Card>
+      ) : (
+        <Card className="mb-4">
         <dl className="grid gap-3 sm:grid-cols-2">
           <div>
             <dt className="text-sm text-slate-500">Company</dt>
@@ -140,7 +273,6 @@ export default function DriveDetailPage() {
           </div>
         </dl>
         {drive.description && <p className="mt-4 text-sm text-slate-700">{drive.description}</p>}
-        {drive.venue && <p className="mt-2 text-sm text-slate-600">Venue: {drive.venue} {drive.meeting_link && <a href={drive.meeting_link} className="text-indigo-600 hover:underline">· Meeting Link</a>}</p>}
         {drive.skills_union?.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-1.5">
             {drive.skills_union.map((skill) => (
@@ -156,6 +288,7 @@ export default function DriveDetailPage() {
           </div>
         )}
       </Card>
+      )}
 
       <Card className="mb-4">
         <h2 className="mb-2 text-base font-semibold text-slate-900">Eligibility</h2>
