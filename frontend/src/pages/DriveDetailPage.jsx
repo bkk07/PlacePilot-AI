@@ -36,6 +36,7 @@ export default function DriveDetailPage() {
   const [editForm, setEditForm] = useState(null)
   const [companies, setCompanies] = useState([])
   const [savingEdit, setSavingEdit] = useState(false)
+  const [publishing, setPublishing] = useState(false)
 
   const checkEligibility = useCallback(async () => {
     if (isAdmin) { setEligibility(null); return }
@@ -116,6 +117,21 @@ export default function DriveDetailPage() {
     }
   }
 
+  async function handlePublish() {
+    setError(null); setNotice(null)
+    setPublishing(true)
+    try {
+      await api.publishDrive(driveId)
+      const updated = await api.getDrive(driveId)
+      setDrive(updated)
+      setNotice('Drive published — now open for students.')
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -181,7 +197,14 @@ export default function DriveDetailPage() {
       <div className="flex items-center justify-between gap-3">
         <PageTitle>{drive.title}</PageTitle>
         {isAdmin && !isEditing && (
-          <Button onClick={startEdit} className="shrink-0 bg-slate-800 hover:bg-slate-900">Edit Drive</Button>
+          <div className="flex gap-2">
+            {drive.status === 'DRAFT' && (
+              <Button onClick={handlePublish} disabled={publishing || positions.length === 0} className="shrink-0 bg-green-600 hover:bg-green-700 disabled:opacity-50" title={positions.length === 0 ? 'Add at least one role before publishing' : 'Publish drive to make it open'}>
+                {publishing ? 'Publishing…' : 'Publish — Make Open'}
+              </Button>
+            )}
+            <Button onClick={startEdit} className="shrink-0 bg-slate-800 hover:bg-slate-900">Edit Drive</Button>
+          </div>
         )}
         {isAdmin && isEditing && (
           <div className="flex gap-2">
@@ -272,6 +295,11 @@ export default function DriveDetailPage() {
             <dd className="font-medium text-slate-900 text-xs">{drive.registration_start ? new Date(drive.registration_start).toLocaleString() : '—'} → {drive.registration_end ? new Date(drive.registration_end).toLocaleString() : '—'}</dd>
           </div>
         </dl>
+        {drive.status === 'DRAFT' && isAdmin && (
+          <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            This drive is in <b>DRAFT</b> — not visible to students. {positions.length === 0 ? 'Add at least one role first.' : 'Click “Publish — Make Open” above or change Status to “open” via Edit Drive to make it open.'}
+          </div>
+        )}
         {drive.description && <p className="mt-4 text-sm text-slate-700">{drive.description}</p>}
         {drive.skills_union?.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-1.5">
