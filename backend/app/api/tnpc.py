@@ -28,6 +28,7 @@ from app.db.models import (
     InternshipDetails,
     JobLocation,
     JobPosition,
+    JobPositionSkill,
     Skill,
     StoredFile,
     User,
@@ -89,13 +90,74 @@ def list_branches(user: User = Depends(get_current_user), db: Session = Depends(
     return [{"id": str(b.id), "name": b.name, "code": b.code} for b in rows]
 
 # ---------- Job Positions ----------
+def _comp_to_dict(c: Compensation | None) -> dict | None:
+    if not c:
+        return None
+    def f(v):
+        return float(v) if v is not None else None
+    return {
+        "annual_ctc": f(c.annual_ctc),
+        "fixed_ctc": f(c.fixed_ctc),
+        "variable_ctc": f(c.variable_ctc),
+        "monthly_salary": f(c.monthly_salary),
+        "monthly_stipend": f(c.monthly_stipend),
+        "ctc_min": f(c.ctc_min),
+        "ctc_max": f(c.ctc_max),
+        "stipend_min": f(c.stipend_min),
+        "stipend_max": f(c.stipend_max),
+        "is_unpaid": bool(c.is_unpaid),
+        "stipend_type": c.stipend_type,
+        "currency": c.currency,
+        "joining_bonus": f(c.joining_bonus),
+        "retention_bonus": f(c.retention_bonus),
+    }
+
+def _position_out(p: JobPosition, db: Session) -> dict:
+    comp = db.scalar(select(Compensation).where(Compensation.job_position_id == p.id))
+    intern = db.scalar(select(InternshipDetails).where(InternshipDetails.job_position_id == p.id))
+    skills = db.execute(select(JobPositionSkill, Skill).join(Skill, JobPositionSkill.skill_id == Skill.id).where(JobPositionSkill.job_position_id == p.id)).all()
+    locs = db.execute(select(JobLocation).where(JobLocation.job_position_id == p.id)).scalars().all()
+    return {
+        "id": str(p.id),
+        "drive_id": str(p.drive_id),
+        "title": p.title,
+        "role": p.role,
+        "department": p.department,
+        "employment_type": p.employment_type,
+        "openings": p.openings,
+        "work_mode": p.work_mode,
+        "job_description": p.job_description,
+        "bond_required": bool(p.bond_required),
+        "bond_duration_months": p.bond_duration_months,
+        "bond_amount": float(p.bond_amount) if p.bond_amount is not None else None,
+        "bond_description": p.bond_description,
+        "compensation": _comp_to_dict(comp),
+        "internship": {
+            "duration_months": intern.duration_months,
+            "paid": bool(intern.paid),
+            "stipend": float(intern.stipend) if intern.stipend is not None else None,
+            "stipend_min": float(intern.stipend_min) if intern.stipend_min is not None else None,
+            "stipend_max": float(intern.stipend_max) if intern.stipend_max is not None else None,
+            "ppo_available": bool(intern.ppo_available),
+            "ppo_criteria": intern.ppo_criteria,
+        } if intern else None,
+        "skills": [
+            {"skill_id": str(skill.id), "name": skill.name, "category": skill.category, "mandatory": bool(jps.mandatory), "skill_level": jps.skill_level}
+            for jps, skill in skills
+        ],
+        "locations": [
+            {"id": str(l.id), "city": l.city, "state": l.state, "country": l.country, "work_mode": l.work_mode}
+            for l in locs
+        ],
+    }
+
 @router.get("/drives/{drive_id}/positions")
 def list_positions(drive_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     drive = db.get(Drive, drive_id)
     if not drive:
         raise HTTPException(404, "drive not found")
-    positions = db.execute(select(JobPosition).where(JobPosition.drive_id == drive_id)).scalars().all()
-    return [{"id": str(p.id), "title": p.title, "role": p.role, "employment_type": p.employment_type, "openings": p.openings, "work_mode": p.work_mode} for p in positions]
+    positions = db.execute(select(JobPosition).where(JobPosition.drive_id == drive_id).order_by(JobPosition.created_at)).scalars().all()
+    return [_position_out(p, db) for p in positions]
 
 @router.post("/drives/{drive_id}/positions", status_code=201)
 def create_position(drive_id: uuid.UUID, payload: dict, admin: User = Depends(require_role("admin")), db: Session = Depends(get_db)):
@@ -105,13 +167,106 @@ def create_position(drive_id: uuid.UUID, payload: dict, admin: User = Depends(re
     title = (payload.get("title") or "").strip()
     if not title:
         raise HTTPException(400, "title required")
-    pos = JobPosition(drive_id=drive_id, title=title, role=payload.get("role") or title, employment_type=payload.get("employment_type") or "FULL_TIME", openings=payload.get("openings"), work_mode=payload.get("work_mode"), job_description=payload.get("job_description"), department=payload.get("department"))
-    db.add(pos); db.commit(); db.refresh(pos)
-    # also create compensation/location if provided
-    if payload.get("annual_ctc") or payload.get("monthly_stipend"):
-        comp = Compensation(job_position_id=pos.id, annual_ctc=payload.get("annual_ctc"), monthly_stipend=payload.get("monthly_stipend"), currency=payload.get("currency") or "INR")
-        db.add(comp); db.commit()
-    return {"id": str(pos.id), "title": pos.title, "role": pos.role}
+    pos = JobPosition(
+        drive_id=drive_id,
+        title=title,
+        role=payload.get("role") or title,
+        employment_type=payload.get("employment_type") or "FULL_TIME",
+        openings=payload.get("openings"),
+        work_mode=payload.get("work_mode"),
+        job_description=payload.get("job_description"),
+        department=payload.get("department"),
+        bond_required=bool(payload.get("bond_required", False)),
+        bond_duration_months=payload.get("bond_duration_months"),
+        bond_amount=payload.get("bond_amount"),
+        bond_description=payload.get("bond_description"),
+    )
+    db.add(pos); db.flush()  # get pos.id before commit
+
+    # Compensation: support ranges + is_unpaid
+    comp_payload = payload.get("compensation") or {}
+    # also allow flat fields for backward compat
+    for k in ["annual_ctc","monthly_stipend","fixed_ctc","variable_ctc","monthly_salary","ctc_min","ctc_max","stipend_min","stipend_max","currency","is_unpaid","stipend_type","joining_bonus","retention_bonus"]:
+        if k in payload and k not in comp_payload:
+            comp_payload[k] = payload[k]
+    has_comp = any(comp_payload.get(k) is not None for k in ["annual_ctc","fixed_ctc","variable_ctc","monthly_salary","monthly_stipend","ctc_min","ctc_max","stipend_min","stipend_max","joining_bonus","retention_bonus"]) or comp_payload.get("is_unpaid")
+    if has_comp:
+        comp = Compensation(
+            job_position_id=pos.id,
+            annual_ctc=comp_payload.get("annual_ctc"),
+            fixed_ctc=comp_payload.get("fixed_ctc"),
+            variable_ctc=comp_payload.get("variable_ctc"),
+            monthly_salary=comp_payload.get("monthly_salary"),
+            monthly_stipend=comp_payload.get("monthly_stipend"),
+            ctc_min=comp_payload.get("ctc_min"),
+            ctc_max=comp_payload.get("ctc_max"),
+            stipend_min=comp_payload.get("stipend_min"),
+            stipend_max=comp_payload.get("stipend_max"),
+            is_unpaid=bool(comp_payload.get("is_unpaid", False)),
+            stipend_type=comp_payload.get("stipend_type"),
+            currency=comp_payload.get("currency") or "INR",
+            joining_bonus=comp_payload.get("joining_bonus"),
+            retention_bonus=comp_payload.get("retention_bonus"),
+        )
+        db.add(comp)
+
+    # Internship details if provided
+    intern_payload = payload.get("internship")
+    if intern_payload or payload.get("employment_type") == "INTERNSHIP":
+        if intern_payload is None:
+            intern_payload = {}
+        # allow flat stipend fields
+        if "stipend" not in intern_payload and comp_payload.get("stipend_min") is not None:
+            intern_payload["stipend"] = comp_payload.get("stipend_min")
+        intern = InternshipDetails(
+            job_position_id=pos.id,
+            duration_months=intern_payload.get("duration_months"),
+            paid=not bool(comp_payload.get("is_unpaid", False)) if "paid" not in intern_payload else bool(intern_payload.get("paid")),
+            stipend=intern_payload.get("stipend"),
+            stipend_min=intern_payload.get("stipend_min") or comp_payload.get("stipend_min"),
+            stipend_max=intern_payload.get("stipend_max") or comp_payload.get("stipend_max"),
+            ppo_available=bool(intern_payload.get("ppo_available", False)),
+            ppo_criteria=intern_payload.get("ppo_criteria"),
+        )
+        db.add(intern)
+
+    # Skills
+    for s in (payload.get("skills") or []):
+        # s can be {skill_id} or {skill_name}
+        skill = None
+        if s.get("skill_id"):
+            try:
+                skill = db.get(Skill, uuid.UUID(s["skill_id"]))
+            except ValueError:
+                continue
+        elif s.get("name"):
+            skill = db.scalar(select(Skill).where(Skill.name == s["name"]))
+        elif s.get("skill_name"):
+            skill = db.scalar(select(Skill).where(Skill.name == s["skill_name"]))
+        if not skill:
+            continue
+        # avoid duplicate
+        exists = db.scalar(select(JobPositionSkill).where(JobPositionSkill.job_position_id == pos.id, JobPositionSkill.skill_id == skill.id))
+        if exists:
+            continue
+        jps = JobPositionSkill(job_position_id=pos.id, skill_id=skill.id, mandatory=bool(s.get("mandatory", True)), skill_level=s.get("skill_level"), minimum_experience_months=s.get("minimum_experience_months"))
+        db.add(jps)
+
+    # Locations
+    for loc in (payload.get("locations") or []):
+        city = (loc.get("city") or "").strip()
+        if not city:
+            continue
+        jl = JobLocation(job_position_id=pos.id, city=city, state=loc.get("state"), country=loc.get("country") or "India", work_mode=loc.get("work_mode"))
+        db.add(jl)
+    # legacy single location support (payload.location string)
+    if payload.get("location") and not payload.get("locations"):
+        # split by comma
+        for city in [c.strip() for c in str(payload.get("location")).split(",") if c.strip()]:
+            db.add(JobLocation(job_position_id=pos.id, city=city, country="India"))
+
+    db.commit(); db.refresh(pos)
+    return _position_out(pos, db)
 
 # ---------- Eligibility ----------
 @router.get("/drives/{drive_id}/eligibility-criteria")

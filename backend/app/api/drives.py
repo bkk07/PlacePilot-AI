@@ -8,15 +8,65 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_role
 from app.db.db import get_db
-from app.db.models import Company, Drive, User
+from app.db.models import Compensation, Company, Drive, JobLocation, JobPosition, JobPositionSkill, Skill, User
 from app.schemas.api_schemas import DriveCreate, DriveOut
 
 router = APIRouter(prefix="/drives", tags=["drives"])
 
 
-def _drive_out(drive: Drive, company: Company, include_rules: bool = False) -> DriveOut:
+def _aggregate_drive(drive: Drive, db: Session) -> dict:
+    positions = db.execute(select(JobPosition).where(JobPosition.drive_id == drive.id)).scalars().all()
+    if not positions:
+        return {"roles_count": 0, "ctc_min": None, "ctc_max": None, "stipend_min": None, "stipend_max": None, "has_unpaid_roles": False, "employment_types": [], "skills_union": [], "locations_union": []}
+    comp_rows = db.execute(select(Compensation).where(Compensation.job_position_id.in_([p.id for p in positions]))).scalars().all()
+    ctc_vals = []
+    stip_vals = []
+    has_unpaid = False
+    for c in comp_rows:
+        if c.is_unpaid:
+            has_unpaid = True
+        for v in [c.ctc_min, c.ctc_max, c.annual_ctc, c.fixed_ctc]:
+            if v is not None:
+                ctc_vals.append(float(v))
+        for v in [c.stipend_min, c.stipend_max, c.monthly_stipend, c.monthly_salary]:
+            if v is not None and not c.is_unpaid:
+                stip_vals.append(float(v))
+        if c.is_unpaid:
+            # still track unpaid role separately
+            pass
+    # fallback to drive legacy fields if no compensation
+    if not ctc_vals and drive.ctc_lpa is not None:
+        ctc_vals = [float(drive.ctc_lpa)]
+    if not stip_vals and drive.stipend_monthly is not None:
+        stip_vals = [float(drive.stipend_monthly)]
+    employment_types = sorted({p.employment_type for p in positions if p.employment_type})
+    # skills union
+    skill_names = set(drive.skills or [])
+    if positions:
+        rows = db.execute(select(Skill.name).join(JobPositionSkill, Skill.id == JobPositionSkill.skill_id).where(JobPositionSkill.job_position_id.in_([p.id for p in positions]))).scalars().all()
+        skill_names.update(rows)
+    # locations union
+    locs = set()
+    if drive.location:
+        locs.update([s.strip() for s in drive.location.split(",") if s.strip()])
+    loc_rows = db.execute(select(JobLocation.city).where(JobLocation.job_position_id.in_([p.id for p in positions]))).scalars().all()
+    locs.update(loc_rows)
+    return {
+        "roles_count": len(positions),
+        "ctc_min": min(ctc_vals) if ctc_vals else None,
+        "ctc_max": max(ctc_vals) if ctc_vals else None,
+        "stipend_min": min(stip_vals) if stip_vals else None,
+        "stipend_max": max(stip_vals) if stip_vals else None,
+        "has_unpaid_roles": has_unpaid,
+        "employment_types": employment_types,
+        "skills_union": sorted(skill_names),
+        "locations_union": sorted(locs),
+    }
+
+def _drive_out(drive: Drive, company: Company, db: Session, include_rules: bool = False) -> DriveOut:
     def _dt(v):
         return v.isoformat() if v is not None else None
+    agg = _aggregate_drive(drive, db)
     return DriveOut(
         id=drive.id,
         title=drive.title,
@@ -37,6 +87,15 @@ def _drive_out(drive: Drive, company: Company, include_rules: bool = False) -> D
         registration_end=_dt(drive.registration_end),
         venue=drive.venue,
         meeting_link=drive.meeting_link,
+        roles_count=agg["roles_count"],
+        ctc_min=agg["ctc_min"],
+        ctc_max=agg["ctc_max"],
+        stipend_min=agg["stipend_min"],
+        stipend_max=agg["stipend_max"],
+        has_unpaid_roles=agg["has_unpaid_roles"],
+        employment_types=agg["employment_types"],
+        skills_union=agg["skills_union"],
+        locations_union=agg["locations_union"],
     )
 
 
@@ -65,7 +124,7 @@ def list_drives(
             ).lower()
             if query.lower() not in haystack:
                 continue
-        out.append(_drive_out(drive, comp))
+        out.append(_drive_out(drive, comp, db))
     return out
 
 
@@ -80,7 +139,7 @@ def get_drive(
     ).first()
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="drive not found")
-    return _drive_out(row[0], row[1], include_rules=True)
+    return _drive_out(row[0], row[1], db, include_rules=True)
 
 
 @router.post("", response_model=DriveOut, status_code=status.HTTP_201_CREATED)
@@ -118,4 +177,4 @@ def create_drive(
     db.add(drive)
     db.commit()
     db.refresh(drive)
-    return _drive_out(drive, company, include_rules=True)
+    return _drive_out(drive, company, db, include_rules=True)

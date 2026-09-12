@@ -100,6 +100,16 @@ class DriveOut(BaseModel):
     registration_end: str | None = None
     venue: str | None = None
     meeting_link: str | None = None
+    # Aggregated per-role data for new UI
+    roles_count: int = 0
+    ctc_min: float | None = None
+    ctc_max: float | None = None
+    stipend_min: float | None = None
+    stipend_max: float | None = None
+    has_unpaid_roles: bool = False
+    employment_types: list[str] = Field(default_factory=list)
+    skills_union: list[str] = Field(default_factory=list)
+    locations_union: list[str] = Field(default_factory=list)
 
 
 class DriveCreate(BaseModel):
@@ -135,12 +145,14 @@ class EligibilityOut(BaseModel):
 
 class ApplicationCreate(BaseModel):
     drive_id: uuid.UUID
+    job_position_id: uuid.UUID | None = None
     idempotency_key: str | None = Field(default=None, max_length=64)
 
 
 class ApplicationOut(BaseModel):
     id: uuid.UUID
     drive_id: uuid.UUID
+    job_position_id: uuid.UUID | None = None
     drive_title: str
     student_id: uuid.UUID
     status: str

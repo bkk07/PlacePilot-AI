@@ -89,10 +89,10 @@ export const api = {
 
   createDrive: (body) => request('/drives', { method: 'POST', body: JSON.stringify(body) }),
 
-  apply: (driveId) =>
+  apply: (driveId, jobPositionId = null) =>
     request('/applications', {
       method: 'POST',
-      body: JSON.stringify({ drive_id: driveId }),
+      body: JSON.stringify({ drive_id: driveId, job_position_id: jobPositionId }),
     }),
 
   listApplications: () => request('/applications'),

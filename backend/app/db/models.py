@@ -368,6 +368,11 @@ class JobPosition(Base):
     job_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     openings: Mapped[int | None] = mapped_column(Integer, nullable=True)
     work_mode: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Bond / Service agreement per role
+    bond_required: Mapped[bool] = mapped_column(Boolean, default=False)
+    bond_duration_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    bond_amount: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    bond_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
@@ -551,6 +556,13 @@ class Compensation(Base):
     joining_bonus: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     retention_bonus: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     currency: Mapped[str] = mapped_column(String, default="INR")
+    # Range + unpaid support
+    ctc_min: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    ctc_max: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    stipend_min: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    stipend_max: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    is_unpaid: Mapped[bool] = mapped_column(Boolean, default=False)
+    stipend_type: Mapped[str | None] = mapped_column(String, nullable=True)  # FIXED/RANGE/PERFORMANCE
 
     job_position: Mapped["JobPosition"] = relationship(back_populates="compensation")
 
@@ -566,6 +578,8 @@ class InternshipDetails(Base):
     duration_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
     paid: Mapped[bool] = mapped_column(Boolean, default=True)
     stipend: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    stipend_min: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    stipend_max: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     start_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
     ppo_available: Mapped[bool] = mapped_column(Boolean, default=False)

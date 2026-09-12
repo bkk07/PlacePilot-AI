@@ -20,6 +20,7 @@ def _app_out(app_row: Application, drive: Drive) -> ApplicationOut:
     return ApplicationOut(
         id=app_row.id,
         drive_id=app_row.drive_id,
+        job_position_id=app_row.job_position_id,
         drive_title=drive.title,
         student_id=app_row.student_id,
         status=app_row.status,
@@ -63,11 +64,18 @@ def apply(
             detail={"message": "not eligible for this drive", "reasons": decision.reasons},
         )
 
-    existing = db.scalar(
-        select(Application).where(
-            Application.drive_id == drive.id, Application.student_id == user.id
-        )
-    )
+    # support per-role application: if job_position_id supplied, check that combo
+    jid = payload.job_position_id
+    if jid is not None:
+        # verify position belongs to drive
+        from app.db.models import JobPosition
+        pos = db.get(JobPosition, jid)
+        if pos is None or pos.drive_id != drive.id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid job_position for this drive")
+    existing_q = select(Application).where(Application.drive_id == drive.id, Application.student_id == user.id)
+    if jid is not None:
+        existing_q = existing_q.where(Application.job_position_id == jid)
+    existing = db.scalar(existing_q)
     if existing is not None:
         return _app_out(existing, drive)
 
@@ -80,6 +88,7 @@ def apply(
 
     app_row = Application(
         drive_id=drive.id,
+        job_position_id=jid,
         student_id=user.id,
         status="applied",
         idempotency_key=payload.idempotency_key,
