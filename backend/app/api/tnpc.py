@@ -62,6 +62,27 @@ def create_company(payload: dict, admin: User = Depends(require_role("admin")), 
     db.add(c); db.commit(); db.refresh(c)
     return {"id": str(c.id), "name": c.name}
 
+
+@router.put("/companies/{company_id}", tags=["companies"])
+def update_company(company_id: uuid.UUID, payload: dict, admin: User = Depends(require_role("admin")), db: Session = Depends(get_db)):
+    c = db.get(Company, company_id)
+    if not c:
+        raise HTTPException(404, "company not found")
+    if "name" in payload:
+        new_name = (payload.get("name") or "").strip()
+        if not new_name:
+            raise HTTPException(400, "name is required")
+        if new_name != c.name and db.scalar(select(Company).where(Company.name == new_name)):
+            raise HTTPException(409, "company already exists")
+        c.name = new_name
+    for field in ["legal_name", "website", "industry", "headquarters", "company_size", "description"]:
+        if field in payload:
+            setattr(c, field, (payload[field].strip() if isinstance(payload[field], str) else payload[field]) or None)
+    c.updated_by = admin.id
+    db.commit()
+    db.refresh(c)
+    return {"id": str(c.id), "name": c.name, "legal_name": c.legal_name, "website": c.website, "industry": c.industry, "headquarters": c.headquarters, "company_size": c.company_size, "description": c.description}
+
 # ---------- Skills & Branches ----------
 @router.get("/skills")
 def list_skills(user: User = Depends(get_current_user), db: Session = Depends(get_db)):

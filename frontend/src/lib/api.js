@@ -113,6 +113,7 @@ export const api = {
   listCompanies: () => request('/companies'),
   createCompany: (body) => request('/companies', { method: 'POST', body: JSON.stringify(body) }),
   getCompany: (id) => request(`/companies/${id}`),
+  updateCompany: (id, body) => request(`/companies/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
 
   listJobPositions: (driveId) => request(`/drives/${driveId}/positions`),
   createJobPosition: (driveId, body) =>
