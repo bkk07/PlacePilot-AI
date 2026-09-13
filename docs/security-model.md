@@ -27,9 +27,11 @@
 
 ### 2. MCP tool layer (Phase 4)
 - Every MCP tool handler receives an auth context (extracted from the caller's token, propagated by the agent).
-- Before executing, each tool re-validates: identity exists, role matches the tool's allowed roles.
+- Before executing, each tool re-validates: identity exists **and the user is still active in the DB** (`verify_active_user` — a deleted/deactivated user's unexpired token is rejected, same rule as the HTTP API), role matches the tool's allowed roles.
 - **Negative rule:** a student's token can never fetch another student's profile, applications, or status — `get_student_profile(student_b_id)` with student A's token must fail.
 - Admin-only tools (`create_drive`, `update_application_status`, …) reject student tokens at the MCP layer too, not just the API layer.
+- Tool errors are structured (`code`: `unauthorized` / `forbidden` / `invalid_input` / `invalid_transition` / `tool_error`) so callers can react programmatically.
+- Agent-side MCP calls enforce per-call timeouts, retry/backoff on transport errors, and a per-user rate limit on `/ai/chat`.
 
 ### 3. AI/LLM guardrails
 - Eligibility is decided by the deterministic rule engine only; the LLM explains the result, never determines it.
@@ -42,7 +44,8 @@
 ### 4. Data & input guardrails
 - Pydantic validation on every API and MCP tool input.
 - SQLAlchemy ORM / parameterized queries only — no raw string-built SQL.
-- Upload validation: file type + size limits on document ingestion.
+- Upload validation: file type + size limits on document ingestion (admin-only knowledge-corpus uploads: `POST /knowledge/documents`).
+- RAG retrieval filters fail closed: unknown filter keys or unknown companies return an error/empty result instead of silently running an unfiltered query.
 - Audit logging on sensitive tool and API calls: who, what params, result status.
 
 ### 5. Business-logic guardrails
@@ -60,4 +63,5 @@
 | Prompt injection via user input | Inputs validated/sanitized before tool execution; user text never becomes system instructions |
 | Malformed LLM output downstream | Pydantic schema validation, retry-once-then-fail policy |
 | Duplicate submissions on retry | Idempotency keys |
-| Secret leakage | All secrets in env vars; never logged; `.env` gitignored |
+| Secret leakage | All secrets in env vars; never logged; `.env` gitignored; startup validation refuses default `JWT_SECRET` on MCP servers and warns on the API |
+| Stale tokens of deactivated users | `verify_active_user` re-checks user existence + `is_active` in the DB on every MCP tool call | |

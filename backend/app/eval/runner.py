@@ -20,7 +20,12 @@ from app.ai.llm_service import track_usage
 from app.core.security import create_token
 from app.db.db import get_session_factory
 from app.db.models import User
-from app.eval.dataset import EvalQuestion, load_dataset
+from app.eval.dataset import (
+    DATASET_PATH,
+    JSONL_DATASET_PATH,
+    EvalQuestion,
+    load_dataset,
+)
 from app.eval.metrics import citation_accuracy, correctness, hallucination, is_declined, retrieval_recall
 
 # Approximate Groq list prices (USD per 1M tokens) — update if Groq changes them.
@@ -264,10 +269,17 @@ def main() -> None:
     delay = DEFAULT_DELAY_S
     if "--delay" in sys.argv:
         delay = float(sys.argv[sys.argv.index("--delay") + 1])
+    dataset_path = DATASET_PATH
+    if "--set" in sys.argv:
+        name = sys.argv[sys.argv.index("--set") + 1]
+        if name == "jsonl":
+            dataset_path = JSONL_DATASET_PATH
+        else:
+            dataset_path = Path(name)
     if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8")
 
-    questions = load_dataset()
+    questions = load_dataset(dataset_path)
     if limit:
         questions = questions[:limit]
     print(f"running eval on {len(questions)} questions (delay {delay}s)...", flush=True)

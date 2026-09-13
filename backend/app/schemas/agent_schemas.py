@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 IntentKind = Literal[
     "eligibility_check",
@@ -37,6 +37,16 @@ class ToolCallSpec(BaseModel):
         default_factory=dict,
         description="Arguments for the tool; use the entity ids exactly as given in the catalog",
     )
+
+    @field_validator("args", mode="before")
+    @classmethod
+    def _stringify(cls, v: dict) -> dict:
+        # The LLM sometimes emits numbers/bools; the client's coerce_args casts
+        # them back per the tool schema, but keep this spec string-typed for
+        # backward compatibility with the planner contract.
+        if isinstance(v, dict):
+            return {k: (val if isinstance(val, str) else str(val)) for k, val in v.items()}
+        return v
 
 
 class ToolSelection(BaseModel):

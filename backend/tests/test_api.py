@@ -78,7 +78,9 @@ def _make_profile(token: str, cgpa: float = 8.5) -> None:
 
 
 def test_health():
-    assert client.get("/health").json() == {"status": "ok"}
+    body = client.get("/health").json()
+    assert body["status"] == "ok"
+    assert "metrics" in body
 
 
 def test_signup_returns_token_and_student_role():
@@ -388,6 +390,9 @@ def test_ai_chat_returns_agent_reply(monkeypatch):
             "planned_tools": [{"name": "search_policy_docs", "args": {}}],
             "tool_results": [],
             "reply": "One active backlog is allowed.",
+            "citations": [
+                {"source": "placement_policy_2026.pdf", "page_number": 1, "quote": "no more than one active backlog"}
+            ],
         }
 
     monkeypatch.setattr("app.api.ai.run_turn", fake_run_turn)
@@ -398,6 +403,31 @@ def test_ai_chat_returns_agent_reply(monkeypatch):
     assert body["intent"] == "policy_question"
     assert body["tools"] == ["search_policy_docs"]
     assert body["thread_id"] == f"user-{_user_id(token)}"
+    assert body["citations"][0]["source"] == "placement_policy_2026.pdf"
+
+
+def test_ai_chat_rate_limited(monkeypatch):
+    _, token = _signup()
+
+    def fake_run_turn(message, student_id, thread_id, token):
+        return {"reply": "ok", "intent": None, "planned_tools": [], "tool_results": [], "citations": []}
+
+    monkeypatch.setattr("app.api.ai.run_turn", fake_run_turn)
+    from app.api import ai as ai_module
+
+    # Tighten the limiter for this test, then hammer past the cap.
+    from app.core.rate_limit import RateLimiter
+
+    old = ai_module._chat_limiter
+    ai_module._chat_limiter = RateLimiter(max_attempts=3, window_sec=60)
+    try:
+        for _ in range(3):
+            r = client.post("/ai/chat", headers=_auth(token), json={"message": "hi"})
+            assert r.status_code == 200
+        r = client.post("/ai/chat", headers=_auth(token), json={"message": "hi"})
+        assert r.status_code == 429
+    finally:
+        ai_module._chat_limiter = old
 
 
 def _user_id(token: str) -> str:

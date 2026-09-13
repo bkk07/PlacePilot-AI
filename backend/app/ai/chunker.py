@@ -18,6 +18,8 @@ def chunk_text(
     overlap: int = 120,
 ) -> list[Chunk]:
     """Split pages into overlapping chunks, attaching metadata to every chunk."""
+    if chunk_size <= overlap:
+        raise ValueError("chunk_size must be greater than overlap")
     chunks: list[Chunk] = []
     for page_no, text in pages:
         if not text.strip():

@@ -122,6 +122,50 @@ export const api = {
       body: JSON.stringify({ message, thread_id: threadId }),
     }),
 
+  // SSE chat stream: onEvent(stage, data) receives intent/tools/reply/citations/done/error.
+  chatStream: async (message, threadId, onEvent, token = getToken()) => {
+    const res = await fetch(`${BASE}/ai/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ message, thread_id: threadId }),
+    })
+    if (!res.ok) {
+      const data = parseBody(await res.text())
+      throw new ApiError(res.status, data?.detail ?? data)
+    }
+    if (!res.body) throw new Error('no stream body')
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      let sep
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, sep)
+        buffer = buffer.slice(sep + 2)
+        let stage = null
+        let data = {}
+        for (const line of frame.split('\n')) {
+          if (line.startsWith('event: ')) stage = line.slice(7).trim()
+          else if (line.startsWith('data: ')) {
+            try {
+              data = JSON.parse(line.slice(6))
+            } catch {
+              /* ignore malformed frame */
+            }
+          }
+        }
+        if (stage && stage !== 'ping') onEvent(stage, data)
+      }
+    }
+  },
+
   // — TNPC domain (new) —
   listCompanies: () => request('/companies'),
   createCompany: (body) => request('/companies', { method: 'POST', body: JSON.stringify(body) }),

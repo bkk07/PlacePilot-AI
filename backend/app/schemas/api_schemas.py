@@ -169,8 +169,18 @@ class ChatRequest(BaseModel):
     thread_id: str | None = Field(default=None, max_length=80)
 
 
+class ChatCitationOut(BaseModel):
+    source: str = Field(description="Document source filename")
+    page_number: int = Field(default=1, ge=1)
+    quote: str = Field(default="", description="Supporting quote from the source")
+
+
 class ChatResponseOut(BaseModel):
     reply: str
     intent: str | None = None
     thread_id: str
     tools: list[str] = Field(default_factory=list)
+    citations: list[ChatCitationOut] = Field(
+        default_factory=list,
+        description="Sources backing the reply (grounded policy answers)",
+    )

@@ -2,14 +2,18 @@
 # Each tool independently re-validates caller identity/role via tool_guard.
 #
 # Run individually (from backend/):
-#   python -m app.mcp.run placement   (port 8101)
-#   python -m app.mcp.run student    (port 8102)
-#   python -m app.mcp.run knowledge   (port 8103)
+#   python -m app.mcp.run placement   (default port 8101)
+#   python -m app.mcp.run student    (default port 8102)
+#   python -m app.mcp.run knowledge  (default port 8103)
+#
+# Ports/host are configured via MCP_HOST / MCP_*_PORT env vars (see app/core/config.py).
 
 import sys
 
 from mcp.server.fastmcp import FastMCP
 
+from app.core.config import settings
+from app.core.observability import setup_logging
 from app.db.db import init_db
 from app.mcp.knowledge_impls import search_policy_docs_impl
 from app.mcp.tool_guard import tool_handler
@@ -34,25 +38,32 @@ from app.schemas.mcp_tool_schemas import (
     UpdateApplicationStatusInput,
 )
 
-SERVERS = {
-    "placement": {
-        "name": "placement-mcp",
-        "port": 8101,
-    },
-    "student": {
-        "name": "student-mcp",
-        "port": 8102,
-    },
-    "knowledge": {
-        "name": "knowledge-mcp",
-        "port": 8103,
-    },
-}
+
+def _server_registry() -> dict[str, dict]:
+    """Server registry derived from settings (env-configurable host/ports)."""
+    return {
+        "placement": {"name": "placement-mcp", "port": settings.MCP_PLACEMENT_PORT},
+        "student": {"name": "student-mcp", "port": settings.MCP_STUDENT_PORT},
+        "knowledge": {"name": "knowledge-mcp", "port": settings.MCP_KNOWLEDGE_PORT},
+    }
+
+
+SERVERS = _server_registry()
+
+
+def _health_check() -> dict:
+    """Liveness + dependency probe exposed as a tool on every server."""
+    from app.core.observability import metrics
+
+    return {"status": "ok", "server_metrics": metrics.snapshot()}
 
 
 def build_server(kind: str) -> FastMCP:
     cfg = SERVERS[kind]
-    server = FastMCP(cfg["name"], host="127.0.0.1", port=cfg["port"])
+    server = FastMCP(cfg["name"], host=settings.MCP_HOST, port=cfg["port"])
+
+    # Health/liveness probe available on every server (no auth — pure status data).
+    server.add_tool(_health_check, name="health", description="Server health and metrics snapshot.")
 
     if kind == "placement":
         server.add_tool(
@@ -113,10 +124,16 @@ def main() -> None:
         print("usage: python -m app.mcp.run {placement|student|knowledge}")
         sys.exit(2)
     kind = sys.argv[1]
+    setup_logging()
+    problems = settings.validate_secrets()
+    if problems:
+        for p in problems:
+            print(f"FATAL: {p}", file=sys.stderr)
+        sys.exit(1)
     init_db()
     server = build_server(kind)
     cfg = SERVERS[kind]
-    print(f"starting {cfg['name']} on http://127.0.0.1:{cfg['port']}/mcp")
+    print(f"starting {cfg['name']} on http://{settings.MCP_HOST}:{cfg['port']}/mcp")
     server.run(transport="streamable-http")
 
 

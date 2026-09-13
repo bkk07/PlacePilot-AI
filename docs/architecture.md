@@ -22,7 +22,7 @@ LangGraph Agent
     ├──► RAG retriever ──► Weaviate (vector search over placement docs)
     ├──► MCP servers (placement-mcp / student-mcp / knowledge-mcp)
     │        └── re-check caller identity + role on EVERY tool call
-    └──► Groq API (LLM inference: llama-3.3-70b / llama-3.1-8b)
+    └──► Groq API (LLM inference: openai/gpt-oss-120b / gpt-oss-20b)
 ```
 
 ## Each arrow, in one sentence

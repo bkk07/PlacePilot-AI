@@ -1,7 +1,6 @@
 ﻿# The LangGraph agent: intent -> tool selection -> tool execution -> LLM synthesis.
 
 import json
-from typing import Literal
 
 from langgraph.graph import END, START, StateGraph
 
@@ -147,6 +146,23 @@ def _clean_drive_args(args: dict, entities: dict) -> dict:
     return cleaned
 
 
+def _enrich_knowledge_args(args: dict, entities: dict) -> dict:
+    """Feed company/document_type filters from intent entities into the knowledge
+    tool so the hybrid search is pre-filtered (anti-hallucination for cross-company)."""
+    cleaned = dict(args)
+    if not cleaned.get("company"):
+        for key in ("company", "organization"):
+            val = entities.get(key)
+            if isinstance(val, str) and val.strip():
+                cleaned["company"] = val.strip()
+                break
+    if not cleaned.get("document_type"):
+        dt = entities.get("document_type")
+        if isinstance(dt, str) and dt.strip():
+            cleaned["document_type"] = dt.strip()
+    return cleaned
+
+
 def execution_node(state: AgentState) -> dict:
     import asyncio
 
@@ -159,6 +175,8 @@ def execution_node(state: AgentState) -> dict:
         # MCP tools re-validate caller identity/role and sanitize inputs themselves;
         # failures return a partial answer, never crash the agent run.
         args = _clean_drive_args(call.get("args", {}), entities)
+        if call.get("name") == "search_policy_docs":
+            args = _enrich_knowledge_args(args, entities)
         try:
             result = asyncio.run(call_tool(call["name"], token, args))
         except Exception as exc:
@@ -173,16 +191,38 @@ def synthesis_node(state: AgentState) -> dict:
     tool_results = state.get("tool_results", [])
 
     if intent == "policy_question" and tool_results:
-        from app.ai.grounded_answer import answer_question
+        # Answer ONLY from the chunks the MCP knowledge tool returned — the same
+        # evidence the audit log saw. No second, unfiltered retrieval pass.
+        from app.ai.llm_use_cases import answer_policy_question
 
-        answer = answer_question(question)
-        return {"final_reply": answer["answer"], "messages": [{"role": "assistant", "content": answer["answer"]}]}
+        chunks = []
+        for tr in tool_results:
+            res = tr.get("result") or {}
+            if isinstance(res, dict) and res.get("chunks"):
+                chunks.extend(res["chunks"])
+        if not chunks:
+            answer = "I don't have that information in the placement documents I was given."
+            return {"final_reply": answer, "citations": [],
+                    "messages": [{"role": "assistant", "content": answer}]}
+        context = [
+            {"source": c.get("source") or c.get("document_id", ""), "page_number": c.get("page_number", 0), "text": c.get("text", "")}
+            for c in chunks
+        ]
+        result = answer_policy_question(question, context)
+        if result.grounded:
+            return {"final_reply": result.answer,
+                    "citations": [c.model_dump() for c in result.citations],
+                    "messages": [{"role": "assistant", "content": result.answer}]}
+        answer = "I don't have that information in the placement documents I was given."
+        return {"final_reply": answer, "citations": [],
+                "messages": [{"role": "assistant", "content": answer}]}
 
     if not tool_results:
         from app.ai.llm_use_cases import general_chat
 
         reply = general_chat(question, history=_history_dicts(state))
-        return {"final_reply": reply.reply, "messages": [{"role": "assistant", "content": reply.reply}]}
+        return {"final_reply": reply.reply, "citations": [],
+                "messages": [{"role": "assistant", "content": reply.reply}]}
 
     system = (
         "You are a placement assistant. Answer the student's question using ONLY the tool "
@@ -199,11 +239,7 @@ def synthesis_node(state: AgentState) -> dict:
         [{"role": "system", "content": system}, {"role": "user", "content": user}],
         config=MODEL_REASONING,
     )
-    return {"final_reply": raw, "messages": [{"role": "assistant", "content": raw}]}
-
-
-def route_after_intent(state: AgentState) -> Literal["selection", "synthesis"]:
-    return "selection"  # selection decides tool calls (possibly zero), then synthesis
+    return {"final_reply": raw, "citations": [], "messages": [{"role": "assistant", "content": raw}]}
 
 
 def build_agent_graph(checkpointer=None):

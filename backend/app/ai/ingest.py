@@ -1,71 +1,51 @@
-# Ingestion script: load documents from data/sample_docs/, chunk, embed, insert into Weaviate.
+# Ingestion pipeline: load documents, chunk, embed, and upsert into Weaviate.
+# Incremental: each document is content-hashed; unchanged docs are skipped,
+# changed docs are re-ingested (old chunks deleted first), and removed files
+# have their chunks purged when re-scanned with prune=True.
 #
-# Usage (from backend/):  python -m app.ai.ingest
+# Usage (from backend/):
+#   python -m app.ai.ingest              # incremental ingest of data/sample_docs
+#   python -m app.ai.ingest --rebuild    # drop the collection and re-ingest everything
+#   python -m app.ai.ingest --prune      # also delete chunks for files no longer present
 
+import hashlib
+import re
 import sys
 import uuid
 from pathlib import Path
 
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-
 from app.ai.chunker import chunk_text
+from app.ai.companies import normalize_company
 from app.ai.document_loader import load_document
 from app.ai.embeddings import embed_texts
-from app.ai.weaviate_client import get_client, get_collection
+from app.ai.weaviate_client import (
+    delete_collection,
+    delete_document_chunks,
+    get_client,
+    get_collection,
+)
+from app.core.config import settings
 
 SAMPLE_DIR = Path(__file__).resolve().parents[2] / "data" / "sample_docs"
 
-
-def _ensure_sample_docs() -> None:
-    """Create the sample corpus (1 policy PDF, 2 JDs, 2 interview experiences) if missing."""
-    if SAMPLE_DIR.exists():
-        return
-    SAMPLE_DIR.mkdir(parents=True)
-    _make_policy_pdf(SAMPLE_DIR / "placement_policy_2026.pdf")
-    (SAMPLE_DIR / "jd_nimbus_software_engineer.txt").write_text(JD_NIMBUS, encoding="utf-8")
-    (SAMPLE_DIR / "jd_quantalpha_data_analyst.txt").write_text(JD_QUANTALPHA, encoding="utf-8")
-    (SAMPLE_DIR / "ie_nimbus_sde_intern.txt").write_text(IE_NIMBUS, encoding="utf-8")
-    (SAMPLE_DIR / "ie_quantalpha_analyst.txt").write_text(IE_QUANTALPHA, encoding="utf-8")
+# Filename substrings -> canonical company (single source: app.ai.companies).
+from app.ai.companies import CANONICAL_COMPANIES as _COMPANIES  # noqa: E402
 
 
-def _make_policy_pdf(path: Path) -> None:
-    c = canvas.Canvas(str(path), pagesize=A4)
-    lines = PLACEMENT_POLICY_TEXT.splitlines()
-    y = 800
-    for line in lines:
-        if y < 50:
-            c.showPage()
-            y = 800
-        c.drawString(50, y, line)
-        y -= 16
-    c.save()
+def _content_hash(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
 def _infer_metadata(path: Path) -> dict:
     """Infer company/year/document_type/role from filename for hybrid+filtered search."""
     name = path.name.lower()
-    # year
-    import re
     m = re.search(r"(20\d{2})", name)
     year = int(m.group(1)) if m else (2025 if name.startswith("ie_") or "statistics" in name else 2026)
-    # company
     company = ""
-    if "nimbus" in name:
-        company = "Nimbus Software"
-    elif "quantalpha" in name:
-        company = "QuantAlpha Analytics"
-    elif "tcs" in name:
-        company = "TCS"
-    elif "infosys" in name:
-        company = "Infosys"
-    elif "mercedes" in name:
-        company = "Mercedes-Benz"
-    elif "accenture" in name:
-        company = "Accenture"
-    elif "wipro" in name:
-        company = "Wipro"
-    # document_type
+    for frag, canonical in _COMPANIES.items():
+        if frag in name:
+            company = canonical
+            break
     if "placement_policy" in name:
         document_type = "placement_policy"
     elif "faq" in name:
@@ -106,10 +86,10 @@ def _infer_metadata(path: Path) -> dict:
 
 
 def _scan_docs() -> list[dict]:
-    """Auto-scan SAMPLE_DIR for all .txt/.pdf files with inferred metadata."""
+    """Auto-scan SAMPLE_DIR for all supported files with inferred metadata."""
     docs = []
     for path in sorted(SAMPLE_DIR.glob("*")):
-        if path.suffix.lower() not in (".txt", ".pdf"):
+        if path.suffix.lower() not in settings.ALLOWED_DOC_TYPES:
             continue
         if path.name.startswith("."):
             continue
@@ -118,29 +98,58 @@ def _scan_docs() -> list[dict]:
     return docs
 
 
-def ingest() -> None:
+def _existing_hashes(collection) -> dict[str, str]:
+    """Map source filename -> content_hash for every chunk already indexed."""
+    manifest: dict[str, str] = {}
+    try:
+        for obj in collection.iterator():
+            props = obj.properties
+            src = props.get("source")
+            if src and props.get("content_hash"):
+                manifest[src] = props["content_hash"]
+    except Exception:
+        pass  # legacy collection without hash properties — treated as empty manifest
+    return manifest
+
+
+def ingest(prune: bool = False, rebuild: bool = False) -> None:
     _ensure_sample_docs()
     client = get_client()
-    collection = get_collection(client)
+    if rebuild:
+        delete_collection(client)
+        client = get_client()
     try:
-        if len(collection) > 0:
-            print(f"Collection already populated ({len(collection)} chunks) — skipping. Delete the collection to re-ingest.")
-            return
-
+        collection = get_collection(client)
         docs = _scan_docs()
         if not docs:
             print(f"No documents found in {SAMPLE_DIR}")
             return
-        print(f"Found {len(docs)} documents to ingest")
+        manifest = _existing_hashes(collection)
 
-        total = 0
+        ingested = unchanged = 0
+        seen_sources: set[str] = set()
         for doc in docs:
+            data = doc["path"].read_bytes()
+            digest = _content_hash(data)
+            seen_sources.add(doc["source"])
+            if manifest.get(doc["source"]) == digest:
+                unchanged += 1
+                continue  # identical content — skip
+
+            # Changed or new document: purge any previous chunks, then index.
+            if doc["source"] in manifest:
+                delete_document_chunks_by_source(client, doc["source"])
+
             document_id = str(uuid.uuid4())
             pages = load_document(doc["path"])
             chunks = chunk_text(
                 pages,
                 document_id=document_id,
-                metadata={k: v for k, v in doc.items() if k != "path"},
+                metadata={
+                    k: v for k, v in doc.items() if k != "path"
+                } | {"content_hash": digest, "embedding_model": settings.EMBEDDING_MODEL},
+                chunk_size=settings.CHUNK_SIZE,
+                overlap=settings.CHUNK_OVERLAP,
             )
             if not chunks:
                 print(f"WARNING: no chunks produced for {doc['path'].name}")
@@ -155,11 +164,64 @@ def ingest() -> None:
                         },
                         vector=vector,
                     )
-            total += len(chunks)
+            ingested += 1
             print(f"Ingested {len(chunks):3d} chunks from {doc['path'].name}")
-        print(f"Done. {total} chunks in collection.")
+
+        pruned = 0
+        if prune:
+            for source in set(manifest) - seen_sources:
+                pruned += delete_document_chunks_by_source(client, source)
+                print(f"Pruned chunks for removed document: {source}")
+
+        print(
+            f"Done. ingested={ingested} unchanged={unchanged} pruned_docs={len(set(manifest) - seen_sources) if prune else 0}"
+            + (f" pruned_chunks={pruned}" if prune and pruned else "")
+            + f" (model: {settings.EMBEDDING_MODEL})."
+        )
     finally:
         client.close()
+
+
+def delete_document_chunks_by_source(client, source: str) -> int:
+    """Delete every chunk whose source filename matches (old chunks of a changed doc)."""
+    from weaviate.classes.query import Filter
+
+    collection = get_collection(client)
+    result = collection.data.delete_many(Filter.by_property("source").equal(source))
+    return result.successful or 0
+
+
+# ---------------------------------------------------------------------------
+# Demo corpus bootstrap (only creates the sample files when the directory is
+# entirely missing — production corpora arrive via the admin upload API).
+# ---------------------------------------------------------------------------
+
+def _ensure_sample_docs() -> None:
+    """Create the sample corpus (1 policy PDF, 2 JDs, 2 interview experiences) if missing."""
+    if SAMPLE_DIR.exists():
+        return
+    SAMPLE_DIR.mkdir(parents=True)
+    _make_policy_pdf(SAMPLE_DIR / "placement_policy_2026.pdf")
+    (SAMPLE_DIR / "jd_nimbus_software_engineer.txt").write_text(JD_NIMBUS, encoding="utf-8")
+    (SAMPLE_DIR / "jd_quantalpha_data_analyst.txt").write_text(JD_QUANTALPHA, encoding="utf-8")
+    (SAMPLE_DIR / "ie_nimbus_sde_intern.txt").write_text(IE_NIMBUS, encoding="utf-8")
+    (SAMPLE_DIR / "ie_quantalpha_analyst.txt").write_text(IE_QUANTALPHA, encoding="utf-8")
+
+
+def _make_policy_pdf(path: Path) -> None:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+
+    c = canvas.Canvas(str(path), pagesize=A4)
+    lines = PLACEMENT_POLICY_TEXT.splitlines()
+    y = 800
+    for line in lines:
+        if y < 50:
+            c.showPage()
+            y = 800
+        c.drawString(50, y, line)
+        y -= 16
+    c.save()
 
 
 PLACEMENT_POLICY_TEXT = """Placement Policy 2026
@@ -257,5 +319,7 @@ Advice: know your resume projects cold, and brush up on percentile math and basi
 
 
 if __name__ == "__main__":
-    ingest()
+    rebuild = "--rebuild" in sys.argv
+    prune = "--prune" in sys.argv
+    ingest(prune=prune, rebuild=rebuild)
     sys.exit(0)

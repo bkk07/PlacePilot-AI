@@ -31,17 +31,22 @@ pytestmark = pytest.mark.skipif(
 def test_in_corpus_questions_hit_expected_sources():
     cases = [
         ("What is the stipend for the QuantAlpha internship?", "jd_quantalpha_data_analyst.txt"),
-        ("How many active backlogs are allowed?", "placement_policy_2026.pdf"),
+        # FAQ/matrix docs answer this in Q&A form, so either is a correct top hit
+        ("How many active backlogs are allowed?", {"placement_policy_2026.pdf", "placement_policy_faq_2026.txt", "eligibility_matrix_2026.txt"}),
         ("What is the minimum CGPA required by Nimbus Software?", "jd_nimbus_software_engineer.txt"),
+        ("What is TCS Ninja CTC?", "jd_tcs_ninja_2026.txt"),
     ]
     for question, expected_source in cases:
         chunks = retrieve(question, top_k=3)
         assert chunks, f"nothing retrieved for: {question}"
-        assert chunks[0].source == expected_source, (
-            f"expected {expected_source} as top hit for {question!r}, got {chunks[0].source}"
+        expected = expected_source if isinstance(expected_source, set) else {expected_source}
+        assert chunks[0].source in expected, (
+            f"expected one of {expected} as top hit for {question!r}, got {chunks[0].source}"
         )
 
 
 def test_out_of_corpus_question_declined():
+    # hybrid fusion scores unrelated text ~0.65; threshold 0.70 must drop it
     assert retrieve("What is the capital of France?", top_k=3) == []
     assert retrieve("Who won the last cricket world cup?", top_k=3) == []
+    assert retrieve("What is the weight of the moon?", top_k=3) == []

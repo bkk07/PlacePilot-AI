@@ -32,13 +32,44 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, { role: 'user', content: text }])
     setBusy(true)
     try {
-      const reply = await api.chat(text, threadId())
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: reply.reply, tools: reply.tools },
-      ])
+      // Stream the reply in as the SSE events arrive.
+      setMessages((prev) => [...prev, { role: 'assistant', content: '', tools: [] }])
+      await api.chatStream(text, threadId(), (stage, data) => {
+        if (stage === 'reply') {
+          setMessages((prev) => {
+            const copy = [...prev]
+            const last = copy[copy.length - 1]
+            copy[copy.length - 1] = { ...last, content: last.content + (data.text ?? '') }
+            return copy
+          })
+        } else if (stage === 'tools') {
+          setMessages((prev) => {
+            const copy = [...prev]
+            const last = copy[copy.length - 1]
+            copy[copy.length - 1] = { ...last, tools: data.tools ?? [] }
+            return copy
+          })
+        } else if (stage === 'citations') {
+          setMessages((prev) => {
+            const copy = [...prev]
+            const last = copy[copy.length - 1]
+            copy[copy.length - 1] = { ...last, citations: data.citations ?? [] }
+            return copy
+          })
+        } else if (stage === 'error') {
+          setError(data.message ?? 'the assistant hit an error')
+        }
+      })
     } catch (err) {
       setError(errorMessage(err))
+      // Remove the empty assistant bubble if nothing arrived.
+      setMessages((prev) => {
+        const copy = [...prev]
+        if (copy.length && copy[copy.length - 1].role === 'assistant' && !copy[copy.length - 1].content) {
+          copy.pop()
+        }
+        return copy
+      })
     } finally {
       setBusy(false)
     }
@@ -68,6 +99,20 @@ export default function ChatPage() {
                 </div>
                 {msg.tools && msg.tools.length > 0 && (
                   <p className="mt-1 text-xs text-slate-400">tools: {msg.tools.join(', ')}</p>
+                )}
+                {msg.citations && msg.citations.length > 0 && (
+                  <details className="mt-1 text-xs text-slate-400">
+                    <summary className="cursor-pointer">sources ({msg.citations.length})</summary>
+                    <ul className="mt-1 list-disc pl-4">
+                      {msg.citations.map((c, i) => (
+                        <li key={i}>
+                          {c.source}
+                          {c.page_number ? ` p.${c.page_number}` : ''}
+                          {c.quote ? ` — “${c.quote}”` : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
                 )}
               </li>
             ))}

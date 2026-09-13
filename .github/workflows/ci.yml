@@ -12,6 +12,45 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: placepilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      weaviate:
+        image: cr.weaviate.io/semitechnologies/weaviate:1.28.4
+        ports:
+          - 8080:8080
+          - 50051:50051
+        options: >-
+          --health-cmd "wget -q -O - http://localhost:8080/v1/.well-known/ready || exit 1"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/placepilot
+      REDIS_URL: redis://localhost:6379/0
+      WEAVIATE_URL: http://localhost:8080
+      JWT_SECRET: ci-only-secret-not-for-production
+      GROQ_API_KEY: ""
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,13 +58,30 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: backend/requirements.txt
-      # Heavy extras (sentence-transformers/torch, reportlab) are intentionally
-      # omitted; tests needing them or live services skip gracefully.
       - name: Install dependencies
         run: |
           pip install fastapi "uvicorn[standard]" pydantic pydantic-settings email-validator pytest httpx \
             sqlalchemy alembic psycopg2-binary python-dotenv \
             "python-jose[cryptography]" "passlib[bcrypt]" "bcrypt==3.2.2" \
             groq pypdf weaviate-client langchain langgraph "mcp<2" langchain-mcp-adapters
-      - name: Run tests
-        run: pytest -q
+      - name: Seed database and ingest corpus
+        run: |
+          python -c "from app.db.db import init_db; init_db()" || true
+          python -m app.db.seed || true
+          python -c "from app.ai.ingest import _ensure_sample_docs; _ensure_sample_docs()" || true
+      - name: Run unit tests (fast)
+        run: pytest -q --ignore=tests/test_mcp_authz.py --ignore=tests/test_retriever_integration.py
+      - name: Start MCP servers
+        run: |
+          nohup python -m app.mcp.run placement > /tmp/mcp-placement.log 2>&1 &
+          nohup python -m app.mcp.run student > /tmp/mcp-student.log 2>&1 &
+          nohup python -m app.mcp.run knowledge > /tmp/mcp-knowledge.log 2>&1 &
+          sleep 6
+          for i in 1 2 3 4 5; do
+            if grep -q "starting" /tmp/mcp-placement.log /tmp/mcp-student.log /tmp/mcp-knowledge.log 2>/dev/null; then
+              break
+            fi
+            sleep 3
+          done
+      - name: Run MCP authz + retrieval integration tests
+        run: pytest -q tests/test_mcp_authz.py tests/test_retriever_integration.py

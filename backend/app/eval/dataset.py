@@ -5,7 +5,10 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-DATASET_PATH = Path(__file__).resolve().parents[2] / "data" / "eval" / "qa_dataset.json"
+DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "eval"
+DATASET_PATH = DATA_DIR / "qa_dataset.json"
+# Expanded-corpus question set (21 docs); loaded via load_dataset(path=...) or --set jsonl.
+JSONL_DATASET_PATH = DATA_DIR / "rag_eval_questions_new.jsonl"
 
 QUESTION_TYPES = {
     "stipend_lookup",
@@ -34,5 +37,13 @@ class EvalQuestion(BaseModel):
 
 
 def load_dataset(path: Path | None = None) -> list[EvalQuestion]:
-    raw = json.loads((path or DATASET_PATH).read_text(encoding="utf-8"))
-    return [EvalQuestion.model_validate(item) for item in raw]
+    target = path or DATASET_PATH
+    if target.suffix == ".jsonl":
+        items = [
+            json.loads(line)
+            for line in target.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+    else:
+        items = json.loads(target.read_text(encoding="utf-8"))
+    return [EvalQuestion.model_validate(item) for item in items]

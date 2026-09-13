@@ -31,6 +31,9 @@ langgraph
 mcp<2
 langchain-mcp-adapters
 
+# Agent persistence — Redis-backed conversation checkpointer (falls back to memory)
+langgraph-checkpoint-redis
+
 # Testing
 pytest
 httpx

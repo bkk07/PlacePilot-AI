@@ -132,8 +132,10 @@ def test_admin_can_create_drive():
     session = get_session_factory()()
     from app.db.models import Company
 
-    company = session.scalar(select(Company).where(Company.name == "Nimbus Software"))
+    company = session.scalar(select(Company).order_by(Company.created_at))
     session.close()
+    if company is None:
+        pytest.skip("no companies seeded in the database")
     result = asyncio.run(
         call_tool(
             "create_drive",
@@ -178,3 +180,38 @@ def test_cross_student_blocked_even_with_forged_claims():
     )
     assert "error" in result
     assert "forbidden" in result["error"]
+
+
+def test_invalid_status_transition_blocked_by_state_machine():
+    # The MCP path must enforce the same state machine as the HTTP API:
+    # e.g. a 'selected' application can never move again (terminal state).
+    token = _token_for(ADMIN_EMAIL, "admin")
+    session = get_session_factory()()
+    from app.db.models import Application
+
+    app_row = session.execute(
+        select(Application).where(Application.status == "selected").limit(1)
+    ).scalar_one_or_none()
+    if app_row is None:
+        # Create a terminal-state application directly for the test.
+        app_row = session.execute(select(Application).limit(1)).scalar_one_or_none()
+        if app_row is None:
+            pytest.skip("no applications in the database to test transitions")
+        app_row.status = "selected"
+        session.commit()
+    session.close()
+
+    result = asyncio.run(
+        call_tool(
+            "update_application_status",
+            token,
+            {"application_id": str(app_row.id), "new_status": "applied", "reason": "test"},
+        )
+    )
+    assert "error" in result
+    assert result.get("code") == "invalid_transition"
+
+
+def test_health_tool_available():
+    result = asyncio.run(call_tool("health", "", {}))
+    assert result.get("status") == "ok"

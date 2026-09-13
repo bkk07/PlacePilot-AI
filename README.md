@@ -23,16 +23,18 @@ docs/           architecture, ER model, security model, eval baselines
 - [Architecture](./docs/architecture.md)
 - [ER Model](./docs/er-model.md)
 - [Security Model](./docs/security-model.md)
+- [MCP Operations Guide](./docs/mcp-ops.md)
 
 ## Setup
 
 ```bash
-cp .env.example .env   # fill in GROQ_API_KEY etc.
+cp .env.example .env   # fill in GROQ_API_KEY and a strong JWT_SECRET
 
-# Start Weaviate (local Docker, both ports required by the v4 client)
+# Option A — one command (Postgres, Redis, Weaviate, API, all three MCP servers):
+docker compose up -d
+
+# Option B — manual:
 docker run -d -p 8080:8080 -p 50051:50051 --name weaviate cr.weaviate.io/semitechnologies/weaviate:latest
-
-# Start PostgreSQL (host port 5433 to avoid clashing with a local Postgres)
 docker run -d --name placepilot-postgres -p 5433:5432 \
   -e POSTGRES_USER=placepilot -e POSTGRES_PASSWORD=placepilot -e POSTGRES_DB=placepilot \
   postgres:16-alpine
@@ -41,7 +43,7 @@ cd backend
 pip install -r requirements.txt
 python -m alembic upgrade head   # apply migrations (creates all tables)
 python -m app.db.seed     # seeds demo users, companies, drives, applications
-python -m app.ai.ingest   # builds sample corpus + DocumentChunk collection, embeds and inserts
+python -m app.ai.ingest   # incremental corpus ingest (content-hashed; --rebuild / --prune supported)
 
 # Start the three MCP servers (one-time infra; reuse while they run)
 python -m app.mcp.run placement   # http://127.0.0.1:8101/mcp
@@ -51,6 +53,7 @@ python -m app.mcp.run knowledge   # http://127.0.0.1:8103/mcp
 python -m app.ai.rag_demo     # retrieval + grounded Q&A demo
 python -m app.agent.cli_demo  # LangGraph agent via MCP: 4 workflows, authz negative test, persistence
 python -m app.eval.runner     # Phase 5 eval suite -> docs/eval-baseline.md
+python -m app.eval.runner --set jsonl   # expanded-corpus eval set (data/eval/rag_eval_questions_new.jsonl)
 uvicorn app.main:app --reload  # API on http://127.0.0.1:8000 (docs at /docs)
 ```
 
@@ -75,7 +78,8 @@ Auth is JWT bearer. Students sign up via `POST /auth/signup` and log in with `PO
 | Drives | `GET /drives` (filter: `query`, `company`, `role`, `status`), `GET /drives/{id}`, `POST /drives` (admin) |
 | Companies | `GET /companies/{id}` |
 | Applications | `POST /applications`, `GET /applications`, `PATCH /applications/{id}` |
-| AI | `POST /ai/chat` (runs the LangGraph agent end-to-end) |
+| AI | `POST /ai/chat` (agent reply + citations), `POST /ai/chat/stream` (SSE: intent/tools/reply/citations/done) |
+| Knowledge | `POST /knowledge/documents` (admin upload to RAG corpus), `GET /knowledge/documents` (manifest), `DELETE /knowledge/documents/{id}` |
 
 Every endpoint enforces auth + role server-side; applications follow a strict status state machine
 (`app/services/application_state.py`) with an append-only history and idempotency keys.

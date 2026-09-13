@@ -27,5 +27,7 @@ class AgentState(TypedDict, total=False):
     planned_tools: list
     # Filled by the tool-execution node.
     tool_results: list
+    # Citations from grounded policy answers (source, page_number, quote).
+    citations: list
     # Final reply for this turn.
     final_reply: str

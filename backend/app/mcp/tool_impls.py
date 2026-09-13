@@ -8,7 +8,20 @@ from sqlalchemy import or_, select
 
 from app.core.security import AuthContext
 from app.db.db import get_session_factory
-from app.db.models import Application, Company, Drive, StudentProfile, User
+from app.db.models import (
+    Application,
+    Branch,
+    Company,
+    Drive,
+    DriveEligibleBatch,
+    DriveEligibleBranch,
+    EligibilityCriteria,
+    JobPosition,
+    JobPositionSkill,
+    Skill,
+    StudentProfile,
+    User,
+)
 from app.schemas.mcp_tool_schemas import (
     CheckEligibilityInput,
     CreateDriveInput,
@@ -18,9 +31,46 @@ from app.schemas.mcp_tool_schemas import (
     StudentIdInput,
     UpdateApplicationStatusInput,
 )
+from app.services.application_state import STATUSES, InvalidTransition, transition
 from app.services.eligibility import evaluate_eligibility
 
-APPLICATION_STATUSES = {"applied", "shortlisted", "interview", "offer", "selected", "rejected", "withdrawn"}
+
+def _build_extended_criteria(session, drive_id) -> dict:
+    """Merge the normalized TNPC tables (EligibilityCriteria / branches / batches)
+    into the extended-criteria dict consumed by the eligibility engine — identical
+    to the HTTP API path so the agent never contradicts /students/me/eligibility."""
+    crit = session.scalar(select(EligibilityCriteria).where(EligibilityCriteria.drive_id == drive_id))
+    branch_rows = session.execute(
+        select(Branch.code)
+        .join(DriveEligibleBranch, DriveEligibleBranch.branch_id == Branch.id)
+        .where(DriveEligibleBranch.drive_id == drive_id)
+    ).scalars().all()
+    batch_rows = session.execute(
+        select(DriveEligibleBatch.graduation_year).where(DriveEligibleBatch.drive_id == drive_id)
+    ).scalars().all()
+    extended: dict = {}
+    if crit:
+        if crit.minimum_cgpa is not None:
+            extended["minimum_cgpa"] = float(crit.minimum_cgpa)
+        if crit.maximum_backlogs is not None:
+            extended["maximum_backlogs"] = crit.maximum_backlogs
+        if crit.passing_year_from is not None:
+            extended["passing_year_from"] = crit.passing_year_from
+        if crit.passing_year_to is not None:
+            extended["passing_year_to"] = crit.passing_year_to
+        if crit.minimum_10th_percentage is not None:
+            extended["minimum_10th_percentage"] = float(crit.minimum_10th_percentage)
+        if crit.minimum_12th_percentage is not None:
+            extended["minimum_12th_percentage"] = float(crit.minimum_12th_percentage)
+        if crit.minimum_diploma_percentage is not None:
+            extended["minimum_diploma_percentage"] = float(crit.minimum_diploma_percentage)
+        if crit.backlogs_allowed is not None:
+            extended["backlogs_allowed"] = crit.backlogs_allowed
+    if branch_rows:
+        extended["eligible_branches"] = list(branch_rows)
+    if batch_rows:
+        extended["eligible_batches"] = list(batch_rows)
+    return extended
 
 
 def _drive_dict(drive: Drive, company: Company, include_rules: bool = True) -> dict:
@@ -155,7 +205,8 @@ def check_eligibility_impl(auth: AuthContext, inp: CheckEligibilityInput) -> dic
             return {"error": "drive not found"}
 
         drive_dict = _drive_dict(target, target.company)
-        result = evaluate_eligibility(student, drive_dict)
+        extended = _build_extended_criteria(session, target.id)
+        result = evaluate_eligibility(student, {"rules": drive_dict.get("rules") or {}, "extended": extended})
         return {
             "student_id": inp.student_id,
             "drive_id": str(target.id),
@@ -209,11 +260,48 @@ def get_recommendations_impl(auth: AuthContext, inp: RecommendationsInput) -> di
         out = []
         for drive, company in rows:
             drive_dict = _drive_dict(drive, company)
-            matched = [s for s in drive.skills if s in student["skills"]]
-            result = evaluate_eligibility(student, drive_dict)
+            extended = _build_extended_criteria(session, drive.id)
+            # Per-role skills union (TNPC wizard) preferred over legacy drive.skills
+            role_skills = set(
+                session.execute(
+                    select(Skill.name).where(
+                        JobPositionSkill.job_position_id.in_(
+                            select(JobPosition.id).where(JobPosition.drive_id == drive.id)
+                        )
+                    )
+                ).scalars().all()
+            ) or set(drive.skills or [])
+
+            # — Weighted score: Skill 40% / Eligibility 20% / Role 20% / CTC 10% / Location 10% —
+            matched = [s for s in role_skills if s in student["skills"]]
+            skill_score = (len(matched) / len(role_skills)) if role_skills else 0.0
+
+            result = evaluate_eligibility(student, {"rules": drive_dict.get("rules") or {}, "extended": extended})
+            elig_score = 1.0 if result.eligible else 0.0
+
+            role_score = 0.0
+            student_role = (student.get("skills") or [])
+            if drive.role:
+                role_words = {w.lower() for w in str(drive.role).replace("-", " ").split() if len(w) > 2}
+                student_text = " ".join(student_role).lower()
+                role_score = min(1.0, sum(1 for w in role_words if w in student_text) / len(role_words)) if role_words else 0.0
+
+            ctc = drive_dict.get("ctc_lpa")
+            # normalize CTC against a 20 LPA ceiling for the 10% weight
+            ctc_score = min(1.0, (float(ctc) / 20.0)) if ctc is not None else 0.0
+
+            location_score = 0.0
+            if drive.location:
+                # remote/hybrid drives match everyone; else neutral 0.5
+                location_score = 1.0 if "remote" in str(drive.location).lower() else 0.5
+
             score = round(
-                0.4 * (len(matched) / len(drive.skills) if drive.skills else 0) + 0.2 * result.eligible,
-                2,
+                0.4 * skill_score
+                + 0.2 * elig_score
+                + 0.2 * role_score
+                + 0.1 * ctc_score
+                + 0.1 * location_score,
+                3,
             )
             out.append(
                 {
@@ -223,6 +311,13 @@ def get_recommendations_impl(auth: AuthContext, inp: RecommendationsInput) -> di
                     "matched_skills": matched,
                     "eligible": result.eligible,
                     "score": score,
+                    "score_breakdown": {
+                        "skill": round(skill_score, 2),
+                        "eligibility": elig_score,
+                        "role": round(role_score, 2),
+                        "ctc": round(ctc_score, 2),
+                        "location": location_score,
+                    },
                 }
             )
         return {"recommendations": sorted(out, key=lambda d: d["score"], reverse=True)}
@@ -263,23 +358,40 @@ def create_drive_impl(auth: AuthContext, inp: CreateDriveInput) -> dict:
 
 
 def update_application_status_impl(auth: AuthContext, inp: UpdateApplicationStatusInput) -> dict:
+    from uuid import UUID
+
     from app.mcp.tool_guard import require_admin
 
     require_admin(auth)
-    if inp.new_status not in APPLICATION_STATUSES:
-        return {"error": f"invalid status; must be one of {sorted(APPLICATION_STATUSES)}"}
+    if inp.new_status not in STATUSES:
+        return {"error": f"invalid status; must be one of {sorted(STATUSES)}", "code": "invalid_input"}
     session = get_session_factory()()
     try:
         try:
-            aid = uuid.UUID(inp.application_id)
+            aid = UUID(inp.application_id)
         except ValueError:
             return {"error": "application not found"}
         app_row = session.get(Application, aid)
         if app_row is None:
             return {"error": "application not found"}
         old = app_row.status
-        app_row.status = inp.new_status
-        session.commit()
+        try:
+            transition(
+                session,
+                app_row,
+                inp.new_status,
+                changed_by=UUID(auth.user_id),
+                reason=inp.reason or None,
+            )
+        except InvalidTransition as exc:
+            # Same state machine as the HTTP API — the MCP path must not bypass it.
+            from app.services.application_state import ALLOWED_TRANSITIONS
+
+            return {
+                "error": f"invalid transition: {exc}",
+                "code": "invalid_transition",
+                "allowed_next": sorted(ALLOWED_TRANSITIONS.get(old, set())),
+            }
         return {"updated": True, "application_id": str(aid), "from": old, "to": inp.new_status}
     finally:
         session.close()

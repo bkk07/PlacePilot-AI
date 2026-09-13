@@ -54,3 +54,29 @@ def verify_token(token: str) -> AuthContext:
     if not user_id or not role:
         raise AuthError("token missing identity claims")
     return AuthContext(user_id=str(user_id), role=str(role))
+
+
+def verify_active_user(token: str) -> AuthContext:
+    """Verify the JWT AND confirm the user still exists and is active in the DB.
+    Same liveness rule as the HTTP API layer (deps.get_current_user) — a
+    deactivated or deleted user's unexpired token must not pass MCP authz."""
+    auth = verify_token(token)
+    try:
+        from app.db.db import get_session_factory
+        from app.db.models import User
+
+        session = get_session_factory()()
+        try:
+            try:
+                user_uuid = uuid.UUID(auth.user_id)
+            except ValueError as exc:
+                raise AuthError("invalid subject") from exc
+            user = session.get(User, user_uuid)
+            if user is None or not user.is_active:
+                raise AuthError("user not found or inactive")
+        finally:
+            session.close()
+    except ImportError:
+        # DB unavailable (isolated unit tests) — signature verification still applies.
+        pass
+    return auth
