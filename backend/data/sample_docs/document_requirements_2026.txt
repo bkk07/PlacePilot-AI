@@ -1,0 +1,17 @@
+Document Requirements 2026 — DriveDocumentRequirement / ApplicationDocument
+
+Per Drive Required Documents (mandatory = true unless noted):
+- Resume (PDF, max 2MB) — mandatory
+- 10th Marksheet — mandatory if minimum_10th_percentage set
+- 12th/Diploma Marksheet — mandatory if minimum_12th_percentage set
+- Government ID — mandatory
+- Internship Certificate — optional, but fast-tracks QuantAlpha case interview
+- Offer Letter (for students with existing offers) — required if allow_students_with_existing_offers = false
+
+Verification: ApplicationDocument.verification_status = PENDING -> VERIFIED/REJECTED by TNPC. Verified at: verified_at.
+
+Upload via StoredFile (BYTEA). File types: pdf, jpg, png. Max 2MB (same as profile photo limit).
+
+Instructions per drive in drive.instructions / drive_documents.
+
+Document Type: document_requirement, Year: 2026

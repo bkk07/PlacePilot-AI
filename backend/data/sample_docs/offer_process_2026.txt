@@ -1,0 +1,13 @@
+Offer Process 2026 — DriveOffer / DriveSelection / PlacementOutcome
+
+1. Offer Release: Company sends offer to TNPC, TNPC communicates within 48 hours (Policy 4.1).
+2. Student Decision: 5 working days to accept/decline (Policy 4.2). Accept = OfferStatus ACCEPTED, decline = DECLINED.
+3. Selection: Application status moves APPLIED -> SHORTLISTED -> INTERVIEW -> OFFER -> SELECTED (application_state.py). Once SELECTED, withdrawn from future drives.
+4. CTC Breakup Example — Nimbus: 12 LPA = 10 LPA fixed + 1 LPA variable + 1 LPA retention bonus after 1 year. QuantAlpha PPO 9.5 LPA = 8.5 fixed + 1 variable.
+5. Stipend Examples: QuantAlpha 35000/mo (6 months), Nimbus DevOps Intern 25000/mo, TCS Digital stipend 20000/mo for internship. Below 10000/mo needs justification.
+6. Joining: joining_date in DriveOffer, outcome JOINED/DID_NOT_JOIN in PlacementOutcome. Package amount recorded.
+7. One job per student policy: DrivePolicy one_job_per_student = true for core drives, false for pool drives. allow_withdrawal = true until OFFER stage.
+
+Contact TNPC for offer letter file (StoredFile).
+
+Document Type: offer_process, Year: 2026

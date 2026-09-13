@@ -1,0 +1,9 @@
+Interview Experience — Infosys SP, Specialist Programmer (2025)
+
+HackWithInfy had 3 problems — I solved 2. Interview was 60 min DSA: LRU cache + system design (rate limiter) similar to Nimbus but harder. Asked about my Java projects, GC tuning.
+
+HR was short, 15 min. No bond. CTC 8.2 LPA confirmed.
+
+Tip: CP rating + Java deep-dive matters more than cloud.
+
+Company: Infosys, Document Type: interview_experience, Year: 2025, Role: Specialist Programmer

@@ -1,0 +1,9 @@
+Interview Experience — TCS Ninja, Software Engineer (2025 batch)
+
+NQT was 85 min — 20 aptitude, 2 coding (array + string). I solved one fully. Shortlisted for interview.
+
+Technical: asked to reverse linked list, then OOP questions, plus SQL join types. HR asked about relocation (Hyderabad/Pune/Bangalore) and shift flexibility. Bond 1 year explained. Whole process 2 weeks. Tip: practice email writing, 1-2 DSA daily.
+
+CTC discussed 5.8 LPA. No stipend (direct FTE).
+
+Company: TCS, Document Type: interview_experience, Year: 2025, Role: Software Engineer

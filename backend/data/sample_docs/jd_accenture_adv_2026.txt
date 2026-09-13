@@ -1,0 +1,21 @@
+Accenture — Advanced App Engineering — Job Description (2026 batch)
+
+Role: Advanced App Engineering Analyst
+Location: Gurgaon, Mumbai — work_mode HYBRID
+Employment Type: FULL_TIME, Openings: 30
+
+CTC: 6.5 LPA (range 6.0-7.0), joining_bonus 25000
+
+Requirements:
+- CGPA 6.0 or above, 0-1 backlogs allowed
+- Branches: CSE, IT, ECE, EEE, ME
+- Batches: 2026, 2027
+
+Skills: python, sql, cloud, communication (mandatory: python — beginner, communication — intermediate)
+
+Selection:
+1. Cognitive + Technical + Coding (90 min, 10 Nov 2026)
+2. Communication assessment
+3. Interview
+
+Document Type: job_description, Company: Accenture, Year: 2026, Role: Advanced App Engineering Analyst

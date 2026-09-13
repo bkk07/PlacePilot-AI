@@ -1,0 +1,15 @@
+{"id":"faq-01","type":"policy","question":"How many offers can a student hold at once?","expected_contains":["2","two"],"expected_source":"placement_policy_faq_2026.txt","expect_decline":false}
+{"id":"faq-02","type":"policy","question":"What is the stipend justification rule?","expected_contains":["10000"],"expected_source":"placement_policy_faq_2026.txt","expect_decline":false}
+{"id":"calendar-01","type":"schedule","question":"When is the Nimbus online assessment?","expected_contains":["12 Oct","October 12","90 min"],"expected_source":"tnpc_calendar_2026.txt","expect_decline":false}
+{"id":"elig-matrix-01","type":"eligible_branches","question":"Which branches are eligible for TCS Ninja 2026?","expected_contains":["CSE","IT","ECE"],"expected_source":"eligibility_matrix_2026.txt","expect_decline":false}
+{"id":"elig-matrix-02","type":"eligible_batches","question":"What batches are eligible for Nimbus Software Engineer?","expected_contains":["2026","2027"],"expected_source":"eligibility_matrix_2026.txt","expect_decline":false}
+{"id":"offer-01","type":"offer_process","question":"How many days do students have to accept an offer and what happens after selection?","expected_contains":["5","working days","withdrawn"],"expected_source":"offer_process_2026.txt","expect_decline":false}
+{"id":"doc-req-01","type":"document_requirement","question":"What documents are mandatory to apply for a drive?","expected_contains":["Resume","10th","ID"],"expected_source":"document_requirements_2026.txt","expect_decline":false}
+{"id":"stats-01","type":"placement_statistics","question":"What was the highest CTC in 2025 and which company?","expected_contains":["18","Nimbus"],"expected_source":"placement_statistics_2025.txt","expect_decline":false}
+{"id":"stats-02","type":"placement_statistics","question":"What is the median CTC in 2025?","expected_contains":["7.2"],"expected_source":"placement_statistics_2025.txt","expect_decline":false}
+{"id":"jd-tcs-01","type":"job_description","question":"What is TCS Ninja CTC and bond?","expected_contains":["5.8","50000","1 year"],"expected_source":"jd_tcs_ninja_2026.txt","expect_decline":false}
+{"id":"jd-inf-01","type":"job_description","question":"What is Infosys SP CTC and eligibility CGPA?","expected_contains":["8.2","7.0"],"expected_source":"jd_infosys_sp_2026.txt","expect_decline":false}
+{"id":"jd-merc-01","type":"job_description","question":"What CTC does Mercedes-Benz offer and for which branches?","expected_contains":["9.0","ME","AERO"],"expected_source":"jd_mercedes_benz_me_2026.txt","expect_decline":false}
+{"id":"ie-tcs-01","type":"interview_experience","question":"What was asked in TCS Ninja NQT?","expected_contains":["NQT","85 min","coding"],"expected_source":"ie_tcs_ninja_2025.txt","expect_decline":false}
+{"id":"ie-merc-01","type":"interview_experience","question":"What was Mercedes intern stipend?","expected_contains":["30000"],"expected_source":"ie_mercedes_intern_2025.txt","expect_decline":false}
+{"id":"cross-01","type":"cross_company","question":"Compare Nimbus vs TCS Ninja vs Infosys SP CTC","expected_contains":["12","5.8","8.2"],"expect_decline":false}

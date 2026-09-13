@@ -1,0 +1,22 @@
+Placement Statistics 2025 — TNPC Analytics
+
+Overall: 342 students registered, 298 placed (87.1%), median CTC 7.2 LPA, highest CTC 18 LPA (Nimbus), average CTC 8.0 LPA.
+
+Branch-wise:
+- CSE: 98/102 placed (96%), avg 9.1 LPA
+- IT: 62/68 (91%), avg 8.3 LPA
+- ECE: 55/64 (85%), avg 7.0 LPA
+- EEE: 38/45 (84%), avg 6.8 LPA
+- ME: 32/45 (71%), avg 6.2 LPA
+- CE: 13/18 (72%), avg 5.9 LPA
+
+Company-wise 2025:
+- Nimbus Software: 14 selected (12 LPA), 180 appeared, selection ratio 7.7%
+- QuantAlpha: 9 selected (9.5 LPA PPO), 120 appeared
+- TCS Ninja: 22 selected (5.8 LPA), 250 appeared
+- Infosys SP: 18 selected (8.2 LPA)
+
+Trend: Applications up 12% vs 2024. Stipend median 28000/mo.
+
+Source: TNPC Annual Report 2025.
+Document Type: placement_statistics, Year: 2025

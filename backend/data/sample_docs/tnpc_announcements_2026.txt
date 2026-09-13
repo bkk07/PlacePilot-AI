@@ -1,0 +1,12 @@
+TNPC Announcements 2026
+
+[GENERAL] 01 Aug 2026 — Registration Open — Portal live at /drives, branches CSE/IT/ECE/EEE/ME/CE eligible per drive.
+[REGISTRATION_CLOSING] 25 Aug 2026 — 5 days left to register, resume + advisor approval mandatory.
+[SHORTLIST_RELEASED] 13 Oct 2026 — Nimbus Software shortlist (34/180) published, check /drives/{id}/applications.
+[ROUND_SCHEDULE] 14 Oct 2026 — Nimbus Tech Round 1 — 10 AM, CSE Block, bring ID.
+[INTERVIEW_SCHEDULE] 18 Oct 2026 — QuantAlpha final round with Research Head — 2 PM, TNPC Room.
+[RESULT] 28 Oct 2026 — TCS Ninja results — 22 selected, offers at 5.8 LPA.
+[OFFER] 30 Oct 2026 — Offers released via TNPC, 48h communication, 5 working days to accept/decline.
+
+Follow /drives/{id}/announcements. Published by TNPC Coordinator.
+Document Type: announcement, Year: 2026

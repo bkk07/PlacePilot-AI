@@ -1,0 +1,22 @@
+Wipro — ECE Embedded Engineer — Job Description (2026 batch)
+
+Role: Embedded Engineer
+Location: Bangalore — work_mode ONSITE
+Employment Type: FULL_TIME, Openings: 12
+
+CTC: 5.5 LPA (fixed 5.0 + variable 0.5)
+Bond: 12 months
+
+Requirements:
+- CGPA 6.0 or above, max 1 backlog
+- Branches: ECE, EEE, CSE
+- Batches: 2026
+
+Skills: c, embedded c, iot, python (mandatory: c, embedded c — intermediate)
+
+Selection:
+1. Embedded assessment — C + aptitude (60 min)
+2. Technical — microcontrollers + projects
+3. HR
+
+Document Type: job_description, Company: Wipro, Year: 2026, Role: Embedded Engineer

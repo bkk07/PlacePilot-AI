@@ -1,0 +1,24 @@
+Infosys — Specialist Programmer (SP) — Job Description (2026 batch)
+
+Role: Specialist Programmer
+Location: Bangalore, Mysore — work_mode HYBRID
+Employment Type: FULL_TIME, Openings: 18
+
+CTC: 8.2 LPA (fixed 7.0 + variable 1.2), retention_bonus 50000 after 18 months
+
+Requirements:
+- CGPA 7.0 or above, 0 active backlogs
+- Branches: CSE, IT, ECE, EEE
+- Batches: 2026 only
+- 10th >=65%, 12th >=65%
+
+Skills: java, python, dsa, system design (mandatory: java, dsa — advanced)
+
+Selection:
+1. HackWithInfy — 3 problems (100 min)
+2. Technical Interview — DSA deep dive + system design basics
+3. HR — 30 min
+
+Bond: none
+
+Document Type: job_description, Company: Infosys, Year: 2026, Role: Specialist Programmer

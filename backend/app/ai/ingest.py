@@ -42,6 +42,82 @@ def _make_policy_pdf(path: Path) -> None:
     c.save()
 
 
+def _infer_metadata(path: Path) -> dict:
+    """Infer company/year/document_type/role from filename for hybrid+filtered search."""
+    name = path.name.lower()
+    # year
+    import re
+    m = re.search(r"(20\d{2})", name)
+    year = int(m.group(1)) if m else (2025 if name.startswith("ie_") or "statistics" in name else 2026)
+    # company
+    company = ""
+    if "nimbus" in name:
+        company = "Nimbus Software"
+    elif "quantalpha" in name:
+        company = "QuantAlpha Analytics"
+    elif "tcs" in name:
+        company = "TCS"
+    elif "infosys" in name:
+        company = "Infosys"
+    elif "mercedes" in name:
+        company = "Mercedes-Benz"
+    elif "accenture" in name:
+        company = "Accenture"
+    elif "wipro" in name:
+        company = "Wipro"
+    # document_type
+    if "placement_policy" in name:
+        document_type = "placement_policy"
+    elif "faq" in name:
+        document_type = "placement_policy"
+    elif "eligibility_matrix" in name:
+        document_type = "eligibility_matrix"
+    elif "offer_process" in name:
+        document_type = "offer_process"
+    elif "document_requirements" in name:
+        document_type = "document_requirement"
+    elif "tnpc_calendar" in name:
+        document_type = "schedule"
+    elif "tnpc_announcements" in name:
+        document_type = "announcement"
+    elif "placement_statistics" in name:
+        document_type = "placement_statistics"
+    elif name.startswith("jd_"):
+        document_type = "job_description"
+    elif name.startswith("ie_"):
+        document_type = "interview_experience"
+    else:
+        document_type = "general"
+    # role hint (light)
+    role = ""
+    if "software_engineer" in name or "sde" in name or "ninja" in name:
+        role = "Software Engineer"
+    elif "data_analyst" in name:
+        role = "Data Analyst"
+    elif "specialist" in name or "sp" in name:
+        role = "Specialist Programmer"
+    elif "mechanical" in name or "mercedes" in name:
+        role = "Mechanical Design Engineer"
+    elif "embedded" in name or "ece" in name:
+        role = "Embedded Engineer"
+    elif "accenture" in name or "advanced" in name:
+        role = "Advanced App Engineering Analyst"
+    return {"company": company, "year": year, "document_type": document_type, "role": role, "source": path.name}
+
+
+def _scan_docs() -> list[dict]:
+    """Auto-scan SAMPLE_DIR for all .txt/.pdf files with inferred metadata."""
+    docs = []
+    for path in sorted(SAMPLE_DIR.glob("*")):
+        if path.suffix.lower() not in (".txt", ".pdf"):
+            continue
+        if path.name.startswith("."):
+            continue
+        meta = _infer_metadata(path)
+        docs.append({"path": path, **meta})
+    return docs
+
+
 def ingest() -> None:
     _ensure_sample_docs()
     client = get_client()
@@ -51,48 +127,11 @@ def ingest() -> None:
             print(f"Collection already populated ({len(collection)} chunks) — skipping. Delete the collection to re-ingest.")
             return
 
-        docs = [
-            {
-                "path": SAMPLE_DIR / "placement_policy_2026.pdf",
-                "company": "",
-                "year": 2026,
-                "document_type": "placement_policy",
-                "role": "",
-                "source": "placement_policy_2026.pdf",
-            },
-            {
-                "path": SAMPLE_DIR / "jd_nimbus_software_engineer.txt",
-                "company": "Nimbus Software",
-                "year": 2026,
-                "document_type": "job_description",
-                "role": "Software Engineer",
-                "source": "jd_nimbus_software_engineer.txt",
-            },
-            {
-                "path": SAMPLE_DIR / "jd_quantalpha_data_analyst.txt",
-                "company": "QuantAlpha Analytics",
-                "year": 2026,
-                "document_type": "job_description",
-                "role": "Data Analyst",
-                "source": "jd_quantalpha_data_analyst.txt",
-            },
-            {
-                "path": SAMPLE_DIR / "ie_nimbus_sde_intern.txt",
-                "company": "Nimbus Software",
-                "year": 2025,
-                "document_type": "interview_experience",
-                "role": "Software Engineer",
-                "source": "ie_nimbus_sde_intern.txt",
-            },
-            {
-                "path": SAMPLE_DIR / "ie_quantalpha_analyst.txt",
-                "company": "QuantAlpha Analytics",
-                "year": 2025,
-                "document_type": "interview_experience",
-                "role": "Data Analyst",
-                "source": "ie_quantalpha_analyst.txt",
-            },
-        ]
+        docs = _scan_docs()
+        if not docs:
+            print(f"No documents found in {SAMPLE_DIR}")
+            return
+        print(f"Found {len(docs)} documents to ingest")
 
         total = 0
         for doc in docs:

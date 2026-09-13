@@ -1,0 +1,23 @@
+TCS Ninja — Job Description (2026 batch)
+
+Role: Software Engineer — Ninja (Fresher)
+Location: Hyderabad, Pune, Bangalore (choice) — work_mode ONSITE
+Employment Type: FULL_TIME, Openings: 22
+
+CTC: 5.8 LPA (fixed 5.0 + variable 0.8), joining_bonus 20000, currency INR
+Bond: 1 year service agreement, bond_amount 50000
+
+Requirements:
+- B.E./B.Tech/MCA with CGPA 6.0 or above, no active backlogs >1
+- Eligible branches: CSE, IT, ECE, EEE, ME, CE
+- Eligible batches: 2026, 2027
+- 10th/12th/Diploma >=60%, max education gap 2 years
+
+Skills: python, java, sql, linux (mandatory: python, sql — intermediate)
+
+Selection Process:
+1. NQT — 85 min Aptitude + Email Writing + Coding (2 problems, 24 Oct 2026)
+2. Technical Interview — DSA + DBMS
+3. HR — relocation, shift
+
+Document Type: job_description, Company: TCS, Year: 2026, Role: Software Engineer

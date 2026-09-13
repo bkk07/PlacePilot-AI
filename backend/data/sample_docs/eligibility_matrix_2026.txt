@@ -1,0 +1,35 @@
+Eligibility Matrix 2026 — TNPC (maps to EligibilityCriteria + DriveEligibleBranch/Batch)
+
+Drive: Nimbus Software Engineer (2026 batch)
+- minimum_cgpa: 7.0, maximum_backlogs: 0, backlogs_allowed: false
+- eligible_branches: CSE, IT, ECE
+- eligible_batches: 2026, 2027
+- minimum_10th_percentage: 60, minimum_12th_percentage: 60
+- passing_year_from: 2026, passing_year_to: 2027
+
+Drive: QuantAlpha Data Analyst (2026 batch)
+- minimum_cgpa: 6.5, maximum_backlogs: 1, backlogs_allowed: true
+- eligible_branches: ALL (any engineering branch)
+- eligible_batches: 2026
+- minimum_12th_percentage: 65 (Math/Stats preferred)
+
+Drive: TCS Ninja 2026
+- minimum_cgpa: 6.0, maximum_backlogs: 1, backlogs_allowed: true
+- eligible_branches: CSE, IT, ECE, EEE, ME, CE
+- eligible_batches: 2026, 2027
+- minimum_10th_percentage: 60, minimum_12th_percentage: 60, minimum_diploma_percentage: 60 (if applicable)
+- maximum_education_gap_years: 2
+
+Drive: Infosys SP 2026
+- minimum_cgpa: 7.0, maximum_backlogs: 0
+- eligible_branches: CSE, IT, ECE, EEE
+- eligible_batches: 2026
+- minimum_10th_percentage: 65, minimum_12th_percentage: 65
+
+Drive: Mercedes-Benz Mechanical 2026
+- minimum_cgpa: 6.5, maximum_backlogs: 1
+- eligible_branches: ME, AERO, CHEM, ECE
+- eligible_batches: 2026, 2027
+
+General rule: CGPA exact cutoff passes (>=). Missing 10th/12th % when required = ineligible.
+Document Type: eligibility_matrix, Year: 2026
