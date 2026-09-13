@@ -51,7 +51,7 @@ def _server_registry() -> dict[str, dict]:
 SERVERS = _server_registry()
 
 
-def _health_check(token: str = "", **kwargs) -> dict:
+def _health_check(token: str = "") -> dict:
     """Liveness + dependency probe exposed as a tool on every server (no auth)."""
     from app.core.observability import metrics
 
