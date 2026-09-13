@@ -63,12 +63,13 @@ jobs:
           pip install fastapi "uvicorn[standard]" pydantic pydantic-settings email-validator pytest httpx \
             sqlalchemy alembic psycopg2-binary python-dotenv \
             "python-jose[cryptography]" "passlib[bcrypt]" "bcrypt==3.2.2" \
-            groq pypdf weaviate-client langchain langgraph "mcp<2" langchain-mcp-adapters
+            groq pypdf weaviate-client langchain langgraph "mcp<2" langchain-mcp-adapters \
+            sentence-transformers
       - name: Seed database and ingest corpus
         run: |
           python -c "from app.db.db import init_db; init_db()" || true
           python -m app.db.seed || true
-          python -c "from app.ai.ingest import _ensure_sample_docs; _ensure_sample_docs()" || true
+          python -m app.ai.ingest --rebuild || true
       - name: Run unit tests (fast)
         run: pytest -q --ignore=tests/test_mcp_authz.py --ignore=tests/test_retriever_integration.py
       - name: Start MCP servers

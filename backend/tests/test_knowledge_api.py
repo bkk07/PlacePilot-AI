@@ -37,9 +37,18 @@ def _weaviate_up() -> bool:
         return False
 
 
+def _embedder_available() -> bool:
+    try:
+        import sentence_transformers  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 pytestmark = pytest.mark.skipif(
-    not (_db_up() and _weaviate_up()),
-    reason="Postgres and/or Weaviate not reachable",
+    not (_db_up() and _weaviate_up() and _embedder_available()),
+    reason="Postgres, Weaviate, and/or sentence-transformers not available",
 )
 
 client = TestClient(app)
