@@ -77,12 +77,22 @@ jobs:
           nohup python -m app.mcp.run placement > /tmp/mcp-placement.log 2>&1 &
           nohup python -m app.mcp.run student > /tmp/mcp-student.log 2>&1 &
           nohup python -m app.mcp.run knowledge > /tmp/mcp-knowledge.log 2>&1 &
-          sleep 6
-          for i in 1 2 3 4 5; do
-            if grep -q "starting" /tmp/mcp-placement.log /tmp/mcp-student.log /tmp/mcp-knowledge.log 2>/dev/null; then
-              break
-            fi
-            sleep 3
+          for svc in placement student knowledge; do
+            echo "waiting for mcp-$svc..."
+            for i in 1 2 3 4 5 6 7 8; do
+              if grep -q "starting.*mcp-$svc" /tmp/mcp-$svc.log 2>/dev/null; then
+                echo "mcp-$svc ready"
+                break
+              fi
+              sleep 3
+            done
+            cat /tmp/mcp-$svc.log || true
           done
       - name: Run MCP authz + retrieval integration tests
-        run: pytest -q tests/test_mcp_authz.py tests/test_retriever_integration.py
+        run: pytest -v tests/test_mcp_authz.py tests/test_retriever_integration.py
+      - name: Dump MCP logs on failure
+        if: failure()
+        run: |
+          echo "--- mcp-placement.log ---"; cat /tmp/mcp-placement.log || true
+          echo "--- mcp-student.log ---"; cat /tmp/mcp-student.log || true
+          echo "--- mcp-knowledge.log ---"; cat /tmp/mcp-knowledge.log || true
