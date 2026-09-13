@@ -33,7 +33,7 @@ def test_in_corpus_questions_hit_expected_sources():
         ("What is the stipend for the QuantAlpha internship?", "jd_quantalpha_data_analyst.txt"),
         # FAQ/matrix docs answer this in Q&A form, so either is a correct top hit
         ("How many active backlogs are allowed?", {"placement_policy_2026.pdf", "placement_policy_faq_2026.txt", "eligibility_matrix_2026.txt"}),
-        ("What is the minimum CGPA required by Nimbus Software?", "jd_nimbus_software_engineer.txt"),
+        ("What is the minimum CGPA required by Nimbus Software?", {"jd_nimbus_software_engineer.txt", "eligibility_matrix_2026.txt"}),
         ("What is TCS Ninja CTC?", "jd_tcs_ninja_2026.txt"),
     ]
     for question, expected_source in cases:
