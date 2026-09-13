@@ -89,10 +89,13 @@ jobs:
             cat /tmp/mcp-$svc.log || true
           done
       - name: Run MCP authz + retrieval integration tests
-        run: pytest -v tests/test_mcp_authz.py tests/test_retriever_integration.py
+        run: |
+          set -o pipefail
+          pytest -v tests/test_mcp_authz.py tests/test_retriever_integration.py 2>&1 | tee /tmp/pytest-integration.log
       - name: Dump MCP logs on failure
         if: failure()
         run: |
+          echo "--- pytest-integration.log ---"; cat /tmp/pytest-integration.log || true
           echo "--- mcp-placement.log ---"; cat /tmp/mcp-placement.log || true
           echo "--- mcp-student.log ---"; cat /tmp/mcp-student.log || true
           echo "--- mcp-knowledge.log ---"; cat /tmp/mcp-knowledge.log || true
