@@ -14,7 +14,8 @@ export function AuthProvider({ children }) {
       return
     }
     try {
-      setUser(await api.me())
+      const me = await api.me()
+      setUser(me)
     } catch {
       clearToken()
       setUser(null)
@@ -29,14 +30,14 @@ export function AuthProvider({ children }) {
 
   const applyToken = useCallback(async (result) => {
     setToken(result.access_token)
-    setUser({
-      user_id: result.user_id,
-      email: '',
-      full_name: result.full_name,
-      role: result.role,
-      has_profile: false,
-    })
-    setUser(await api.me())
+    try {
+      const me = await api.me()
+      setUser(me)
+    } catch {
+      clearToken()
+      setUser(null)
+      throw new Error('Failed to load user profile after login')
+    }
   }, [])
 
   const login = useCallback(

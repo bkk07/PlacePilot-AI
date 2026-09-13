@@ -70,8 +70,9 @@ export default function DriveWizardPage() {
 
   async function createCompanyInline(e) {
     e.preventDefault(); setError(null)
+    if (!newCompany.name?.trim()) { setError('Company name required'); return }
     try {
-      const res = await api.createCompany(newCompany)
+      const res = await api.createCompany({ name: newCompany.name.trim(), industry: newCompany.industry?.trim() || null, website: newCompany.website?.trim() || null })
       setCompanies((c) => [...c, { id: res.id, name: res.name }])
       setDrive({ ...drive, company_id: res.id })
       setNewCompany({ name: '', industry: '', website: '' })
@@ -114,10 +115,14 @@ export default function DriveWizardPage() {
 
   async function addPosition(e) {
     e.preventDefault(); setError(null)
+    if (!position.title?.trim()) { setError('Position Title required'); return }
+    if (position.ctc_min && position.ctc_max && Number(position.ctc_min) > Number(position.ctc_max)) { setError('CTC min cannot exceed max'); return }
+    if (position.stipend_min && position.stipend_max && Number(position.stipend_min) > Number(position.stipend_max)) { setError('Stipend min cannot exceed max'); return }
+    if (!locations.some((l) => l.city.trim())) { setError('At least one location city is required'); return }
     try {
       const payload = {
-        title: position.title,
-        role: position.role || position.title,
+        title: position.title.trim(),
+        role: (position.role || position.title).trim(),
         department: position.department || null,
         employment_type: position.employment_type,
         openings: position.openings === '' ? null : Number(position.openings),
@@ -146,7 +151,6 @@ export default function DriveWizardPage() {
           ppo_criteria: intern.ppo_criteria || null,
         } : undefined,
       }
-      if (!payload.title) throw new Error('Position Title required')
       if (payload.compensation.is_unpaid) {
         payload.compensation.stipend_min = null
         payload.compensation.stipend_max = null

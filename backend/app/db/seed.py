@@ -19,10 +19,18 @@ STUDENT_PASSWORD = "student-pass"
 ADMIN_PASSWORD = "admin-pass"
 
 
+def seed_branches(session):
+    from app.db.models import Branch
+    if session.scalar(select(Branch).limit(1)) is None:
+        for code, name in [("CSE","Computer Science"),("IT","Information Technology"),("ECE","Electronics & Communication"),("EEE","Electrical"),("ME","Mechanical"),("CE","Civil"),("AERO","Aerospace"),("CHEM","Chemical")]:
+            session.add(Branch(name=name, code=code))
+        session.commit()
+
 def seed() -> None:
     init_db()
     session = get_session_factory()()
     try:
+        seed_branches(session)
         if session.scalar(select(User).where(User.email == STUDENT_EMAIL)):
             print("Already seeded.")
             return

@@ -41,13 +41,16 @@ export default function DriveDetailPage() {
   const [appsLoading, setAppsLoading] = useState(false)
   const [updatingId, setUpdatingId] = useState(null)
 
+  const isOpenStatus = useCallback((s) => ['open', 'OPEN', 'PUBLISHED', 'REGISTRATION_OPEN'].includes(String(s)), [])
+
   const checkEligibility = useCallback(async () => {
     if (isAdmin) { setEligibility(null); return }
     try {
-      setEligibility(await api.checkEligibility(driveId))
+      const res = await api.checkEligibility(driveId)
+      setEligibility(res)
     } catch (err) {
-      if (err instanceof ApiError && (err.status === 409 || err.status === 403)) {
-        setEligibility(null)
+      if (err instanceof ApiError && (err.status === 409 || err.status === 403 || err.status === 404)) {
+        setEligibility({ eligible: false, reasons: [errorMessage(err)], missing_requirements: [] })
       } else {
         setError(errorMessage(err))
       }
@@ -223,6 +226,7 @@ export default function DriveDetailPage() {
   if (!drive) return <ErrorBanner message={error ?? 'Drive not found'} />
 
   const driveApplied = !!appliedMap['__drive__']
+  const driveIsOpen = isOpenStatus(drive.status)
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -330,7 +334,7 @@ export default function DriveDetailPage() {
             <dd className="font-medium text-slate-900 text-xs">{drive.registration_start ? new Date(drive.registration_start).toLocaleString() : '—'} → {drive.registration_end ? new Date(drive.registration_end).toLocaleString() : '—'}</dd>
           </div>
         </dl>
-        {drive.status === 'DRAFT' && isAdmin && (
+        {['DRAFT', 'draft'].includes(String(drive.status)) && isAdmin && (
           <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
             This drive is in <b>DRAFT</b> — not visible to students. {positions.length === 0 ? 'Add at least one role first.' : 'Click “Publish — Make Open” above or change Status to “open” via Edit Drive to make it open.'}
           </div>
@@ -365,10 +369,15 @@ export default function DriveDetailPage() {
                 <li key={reason}>{reason}</li>
               ))}
             </ul>
+            {eligibility.missing_requirements?.length > 0 && (
+              <div className="mt-3 rounded-md bg-amber-50 border border-amber-200 p-2 text-xs text-amber-800">
+                <b>Missing:</b> {eligibility.missing_requirements.join('; ')}
+              </div>
+            )}
           </>
         ) : (
           <p className="text-sm text-slate-600">
-            Complete your profile to see your eligibility for this drive.
+            {isAdmin ? 'Eligibility check is student-only.' : 'Complete your profile to see your eligibility for this drive.'}
           </p>
         )}
       </Card>
@@ -380,8 +389,8 @@ export default function DriveDetailPage() {
 
       {positions.length === 0 ? (
         <Card>
-          <p className="text-sm text-slate-600">No roles added yet. {drive.status === 'open' && !drive.roles_count ? <span>TNPC will add roles soon.</span> : null}</p>
-          {!driveApplied && eligibility?.eligible && drive.status === 'open' && positions.length === 0 && (
+          <p className="text-sm text-slate-600">No roles added yet. {driveIsOpen && !drive.roles_count ? <span>TNPC will add roles soon.</span> : null}</p>
+          {!driveApplied && eligibility?.eligible && driveIsOpen && positions.length === 0 && (
             <Button onClick={() => onApply(null)} disabled={!!applyingId} className="mt-3">{applyingId ? 'Submitting…' : 'Apply to Drive'}</Button>
           )}
           {driveApplied && <Badge tone="green" className="mt-3">Applied</Badge>}
@@ -448,12 +457,13 @@ export default function DriveDetailPage() {
                 <div className="mt-4">
                   <Button
                     onClick={() => onApply(p.id)}
-                    disabled={!!applyingId || isApplied || !eligibility?.eligible || drive.status !== 'open'}
+                    disabled={!!applyingId || isApplied || !eligibility?.eligible || !driveIsOpen}
                     className={isApplied ? 'bg-green-600 hover:bg-green-700' : ''}
                   >
                     {isApplied ? 'Applied ✓' : applyingId === p.id ? 'Submitting…' : 'Apply to this Role'}
                   </Button>
-                  {!eligibility?.eligible && <span className="ml-2 text-xs text-red-600">Not eligible</span>}
+                  {eligibility && !eligibility?.eligible && <span className="ml-2 text-xs text-red-600">Not eligible</span>}
+                  {!driveIsOpen && <span className="ml-2 text-xs text-amber-700">Drive not open ({drive.status})</span>}
                 </div>
               </Card>
             )

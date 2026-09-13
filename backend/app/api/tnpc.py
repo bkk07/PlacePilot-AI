@@ -36,6 +36,42 @@ from app.db.models import (
 
 router = APIRouter(tags=["tnpc"])
 
+from pydantic import BaseModel, Field
+
+
+class CompanyCreateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    legal_name: str | None = Field(default=None, max_length=200)
+    website: str | None = Field(default=None, max_length=500)
+    industry: str | None = Field(default=None, max_length=100)
+    headquarters: str | None = Field(default=None, max_length=100)
+    company_size: str | None = Field(default=None, max_length=20)
+    description: str | None = Field(default=None, max_length=2000)
+
+
+class CompanyUpdateIn(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    legal_name: str | None = Field(default=None, max_length=200)
+    website: str | None = Field(default=None, max_length=500)
+    industry: str | None = Field(default=None, max_length=100)
+    headquarters: str | None = Field(default=None, max_length=100)
+    company_size: str | None = Field(default=None, max_length=20)
+    description: str | None = Field(default=None, max_length=2000)
+
+
+class SkillCreateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    category: str | None = Field(default="OTHER", max_length=50)
+    description: str | None = Field(default=None, max_length=500)
+
+
+def _ensure_branches_seeded(db: Session):
+    """Seed default branches if table empty - idempotent, called lazily."""
+    if db.scalar(select(Branch).limit(1)) is None:
+        for code, name in [("CSE","Computer Science"),("IT","Information Technology"),("ECE","Electronics & Communication"),("EEE","Electrical"),("ME","Mechanical"),("CE","Civil"),("AERO","Aerospace"),("CHEM","Chemical")]:
+            db.add(Branch(name=name, code=code))
+        db.commit()
+
 # ---------- Companies ----------
 @router.get("/companies", tags=["companies"])
 def list_companies(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -43,20 +79,20 @@ def list_companies(user: User = Depends(get_current_user), db: Session = Depends
     return [{"id": str(c.id), "name": c.name, "legal_name": c.legal_name, "industry": c.industry, "headquarters": c.headquarters, "website": c.website, "description": c.description, "company_size": c.company_size} for c in rows]
 
 @router.post("/companies", status_code=201, tags=["companies"])
-def create_company(payload: dict, admin: User = Depends(require_role("admin")), db: Session = Depends(get_db)):
-    name = (payload.get("name") or "").strip()
+def create_company(payload: CompanyCreateIn, admin: User = Depends(require_role("admin")), db: Session = Depends(get_db)):
+    name = payload.name.strip()
     if not name:
         raise HTTPException(400, "name is required")
     if db.scalar(select(Company).where(Company.name == name)):
         raise HTTPException(409, "company already exists")
     c = Company(
         name=name,
-        legal_name=payload.get("legal_name"),
-        website=payload.get("website"),
-        industry=payload.get("industry"),
-        company_size=payload.get("company_size"),
-        description=payload.get("description"),
-        headquarters=payload.get("headquarters"),
+        legal_name=payload.legal_name,
+        website=str(payload.website) if payload.website else None,
+        industry=payload.industry,
+        company_size=payload.company_size,
+        description=payload.description,
+        headquarters=payload.headquarters,
         created_by=admin.id,
     )
     db.add(c); db.commit(); db.refresh(c)
@@ -64,20 +100,21 @@ def create_company(payload: dict, admin: User = Depends(require_role("admin")), 
 
 
 @router.put("/companies/{company_id}", tags=["companies"])
-def update_company(company_id: uuid.UUID, payload: dict, admin: User = Depends(require_role("admin")), db: Session = Depends(get_db)):
+def update_company(company_id: uuid.UUID, payload: CompanyUpdateIn, admin: User = Depends(require_role("admin")), db: Session = Depends(get_db)):
     c = db.get(Company, company_id)
     if not c:
         raise HTTPException(404, "company not found")
-    if "name" in payload:
-        new_name = (payload.get("name") or "").strip()
+    if payload.name is not None:
+        new_name = payload.name.strip()
         if not new_name:
             raise HTTPException(400, "name is required")
         if new_name != c.name and db.scalar(select(Company).where(Company.name == new_name)):
             raise HTTPException(409, "company already exists")
         c.name = new_name
     for field in ["legal_name", "website", "industry", "headquarters", "company_size", "description"]:
-        if field in payload:
-            setattr(c, field, (payload[field].strip() if isinstance(payload[field], str) else payload[field]) or None)
+        val = getattr(payload, field)
+        if val is not None:
+            setattr(c, field, (val.strip() if isinstance(val, str) else val) or None)
     c.updated_by = admin.id
     db.commit()
     db.refresh(c)
@@ -88,33 +125,28 @@ def update_company(company_id: uuid.UUID, payload: dict, admin: User = Depends(r
 def list_skills(q: str = Query(default="", max_length=100), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     stmt = select(Skill).order_by(Skill.name)
     if q:
-        # search by name or category, case-insensitive
         like = f"%{q.strip()}%"
-        stmt = stmt.where(Skill.name.ilike(like))
-    # limit to 80 for search to keep response snappy
+        # search both name and category
+        from sqlalchemy import or_
+        stmt = stmt.where(or_(Skill.name.ilike(like), Skill.category.ilike(like)))
     stmt = stmt.limit(80)
     return [{"id": str(s.id), "name": s.name, "category": s.category} for s in db.execute(stmt).scalars().all()]
 
 @router.post("/skills", status_code=201)
-def create_skill(payload: dict, admin: User = Depends(require_role("admin")), db: Session = Depends(get_db)):
-    name = (payload.get("name") or "").strip()
+def create_skill(payload: SkillCreateIn, admin: User = Depends(require_role("admin")), db: Session = Depends(get_db)):
+    name = payload.name.strip()
     if not name:
         raise HTTPException(400, "name required")
     if db.scalar(select(Skill).where(Skill.name == name)):
         raise HTTPException(409, "skill already exists")
-    s = Skill(name=name, category=payload.get("category") or "OTHER", description=payload.get("description"))
+    s = Skill(name=name, category=payload.category or "OTHER", description=payload.description)
     db.add(s); db.commit(); db.refresh(s)
     return {"id": str(s.id), "name": s.name, "category": s.category}
 
 @router.get("/branches")
 def list_branches(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _ensure_branches_seeded(db)
     rows = db.execute(select(Branch).order_by(Branch.code)).scalars().all()
-    if not rows:
-        # seed default branches on first call if empty
-        for code, name in [("CSE","Computer Science"),("IT","Information Technology"),("ECE","Electronics & Communication"),("EEE","Electrical"),("ME","Mechanical"),("CE","Civil")]:
-            b = Branch(name=name, code=code); db.add(b)
-        db.commit()
-        rows = db.execute(select(Branch).order_by(Branch.code)).scalars().all()
     return [{"id": str(b.id), "name": b.name, "code": b.code} for b in rows]
 
 # ---------- Job Positions ----------
@@ -189,6 +221,20 @@ def list_positions(drive_id: uuid.UUID, user: User = Depends(get_current_user), 
 
 @router.post("/drives/{drive_id}/positions", status_code=201)
 def create_position(drive_id: uuid.UUID, payload: dict, admin: User = Depends(require_role("admin")), db: Session = Depends(get_db)):
+    # Validate compensation ranges early
+    _comp = payload.get("compensation") or {}
+    if _comp.get("ctc_min") is not None and _comp.get("ctc_max") is not None:
+        try:
+            if float(_comp["ctc_min"]) > float(_comp["ctc_max"]):
+                raise HTTPException(400, "ctc_min cannot exceed ctc_max")
+        except ValueError:
+            pass
+    if _comp.get("stipend_min") is not None and _comp.get("stipend_max") is not None:
+        try:
+            if float(_comp["stipend_min"]) > float(_comp["stipend_max"]):
+                raise HTTPException(400, "stipend_min cannot exceed stipend_max")
+        except ValueError:
+            pass
     drive = db.get(Drive, drive_id)
     if not drive:
         raise HTTPException(404, "drive not found")
@@ -412,13 +458,22 @@ def publish_drive(drive_id: uuid.UUID, admin: User = Depends(require_role("admin
     drive = db.get(Drive, drive_id)
     if not drive:
         raise HTTPException(404, "drive not found")
-    # Require at least one job position before publish/open
     pos_exists = db.execute(select(JobPosition.id).where(JobPosition.drive_id == drive_id).limit(1)).first() is not None
     if not pos_exists:
         raise HTTPException(status_code=400, detail="at least one job position required before publishing")
+    # Optional hardening: warn if no eligibility/batches set - still allow publish but inform
+    crit = db.scalar(select(EligibilityCriteria).where(EligibilityCriteria.drive_id == drive_id))
+    batches = db.execute(select(DriveEligibleBatch.id).where(DriveEligibleBatch.drive_id == drive_id).limit(1)).first() is not None
+    if not crit and not batches:
+        # allow but could require in future - log for admin awareness
+        pass
     drive.status = "open"
     drive.published_at = datetime.utcnow()
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="failed to publish drive")
     return {"ok": True, "status": drive.status}
 
 

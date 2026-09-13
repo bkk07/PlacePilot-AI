@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, Card, ErrorBanner, Field, PageTitle } from '../components/ui.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { api, errorMessage, getToken } from '../lib/api.js'
+import { api, errorMessage } from '../lib/api.js'
 
 const EMPTY = {
   roll_number: '',
@@ -53,6 +53,7 @@ export default function ProfilePage() {
   // load profile + catalogs
   useEffect(() => {
     let cancelled = false
+    let objectUrl = null
     async function load() {
       try {
         const [profile, skills, brs] = await Promise.all([
@@ -85,13 +86,13 @@ export default function ProfilePage() {
             year_gaps: profile.year_gaps ?? 0,
           })
           if (profile.profile_photo_id) {
-            // use authenticated image via token header blob — for simplicity show placeholder with fetch?
-            // we set a cache-busting url; browser will send Authorization via vite proxy? Instead use blob fetch
-            const token = getToken()
-            fetch(`/api/students/me/profile/photo`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-              .then(r => r.ok ? r.blob() : null)
-              .then(b => { if (b && !cancelled) setPhotoUrl(URL.createObjectURL(b)) })
-              .catch(() => {})
+            try {
+              const blob = await api.getProfilePhotoBlob()
+              if (!cancelled && blob) {
+                objectUrl = URL.createObjectURL(blob)
+                setPhotoUrl(objectUrl)
+              }
+            } catch {}
           }
         }
         setSkillsCatalog(skills)
@@ -103,7 +104,10 @@ export default function ProfilePage() {
       }
     }
     void load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
   }, [])
 
   const filteredSkills = useMemo(() => {
@@ -127,18 +131,22 @@ export default function ProfilePage() {
   async function onPhotoChange(e) {
     const file = e.target.files?.[0]
     if (!file) return
+    if (file.size > 2 * 1024 * 1024) {
+      setError('File too large (max 2MB)')
+      return
+    }
+    if (!file.type.startsWith('image/')) {
+      setError('Only image files allowed')
+      return
+    }
     setPhotoBusy(true); setError(null)
     try {
       await api.uploadProfilePhoto(file)
-      const token = getToken()
-      const r = await fetch(`/api/students/me/profile/photo`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-      if (r.ok) {
-        const b = await r.blob()
-        setPhotoUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(b) })
-        setNotice('Photo updated.')
-      }
+      const blob = await api.getProfilePhotoBlob()
+      setPhotoUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
+      setNotice('Photo updated.')
     } catch (err) { setError(errorMessage(err)) }
-    finally { setPhotoBusy(false) }
+    finally { setPhotoBusy(false); e.target.value = '' }
   }
 
   function numOrNull(v) { return v === '' || v === null ? null : Number(v) }

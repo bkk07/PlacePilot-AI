@@ -13,6 +13,7 @@ class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/placepilot")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     WEAVIATE_URL: str = os.getenv("WEAVIATE_URL", "http://localhost:8080")
+    CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174")
 
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GROQ_REASONING_MODEL: str = os.getenv("GROQ_REASONING_MODEL", "openai/gpt-oss-120b")

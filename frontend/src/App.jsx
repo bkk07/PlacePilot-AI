@@ -23,21 +23,13 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route index element={<DashboardPage />} />
-              {/* Student */}
               <Route path="drives" element={<DrivesPage />} />
               <Route path="drives/:driveId" element={<DriveDetailPage />} />
-              <Route path="profile" element={<ProtectedRoute roles={['student']} />} >
-                <Route index element={<ProfilePage />} />
-              </Route>
+              <Route path="profile" element={<ProtectedRoute roles={['student']}><ProfilePage /></ProtectedRoute>} />
               <Route path="applications" element={<ApplicationsPage />} />
               <Route path="chat" element={<ChatPage />} />
-              {/* TNPC Admin */}
-              <Route path="companies" element={<ProtectedRoute roles={['admin']} />} >
-                <Route index element={<CompaniesPage />} />
-              </Route>
-              <Route path="drives/new" element={<ProtectedRoute roles={['admin']} />} >
-                <Route index element={<DriveWizardPage />} />
-              </Route>
+              <Route path="companies" element={<ProtectedRoute roles={['admin']}><CompaniesPage /></ProtectedRoute>} />
+              <Route path="drives/new" element={<ProtectedRoute roles={['admin']}><DriveWizardPage /></ProtectedRoute>} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

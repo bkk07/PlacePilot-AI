@@ -21,6 +21,7 @@ const adminLinks = [
 export default function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  if (!user) return null
   const links = user?.role === 'admin' ? adminLinks : studentLinks
   const roleLabel = user?.role === 'admin' ? 'TNPC Admin' : 'Student'
 

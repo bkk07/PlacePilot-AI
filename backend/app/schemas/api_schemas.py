@@ -33,8 +33,8 @@ class ProfileIn(BaseModel):
     active_backlogs: int = Field(default=0, ge=0, le=20)
     skills: list[str] = Field(default_factory=list, max_length=30)
     # student information
-    personal_email: str | None = Field(default=None, max_length=120)
-    phone_number: str | None = Field(default=None, max_length=20)
+    personal_email: EmailStr | None = Field(default=None, max_length=120)
+    phone_number: str | None = Field(default=None, max_length=20, pattern=r"^[0-9+\-\s]{7,20}$")
     # B.Tech academic
     degree: str = Field(default="B.Tech", max_length=40)
     specialization: str | None = Field(default=None, max_length=80)

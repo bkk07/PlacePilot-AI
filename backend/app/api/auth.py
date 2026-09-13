@@ -26,16 +26,30 @@ def _token_response(user: User) -> TokenResponse:
     )
 
 
+_login_attempts: dict[str, list[float]] = {}
+import time
+
+def _check_rate_limit(key: str, max_attempts: int = 8, window_sec: int = 60):
+    now = time.time()
+    attempts = _login_attempts.get(key, [])
+    attempts = [t for t in attempts if now - t < window_sec]
+    if len(attempts) >= max_attempts:
+        raise HTTPException(status_code=429, detail="too many attempts, try again later")
+    attempts.append(now)
+    _login_attempts[key] = attempts
+
+
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> TokenResponse:
-    existing = db.scalar(select(User).where(User.email == payload.email))
+    email_norm = payload.email.strip().lower()
+    existing = db.scalar(select(User).where(User.email == email_norm))
     if existing is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="email already registered")
 
     user = User(
-        email=payload.email,
+        email=email_norm,
         password_hash=pwd.hash(payload.password),
-        full_name=payload.full_name,
+        full_name=payload.full_name.strip(),
         role="student",
     )
     db.add(user)
@@ -46,7 +60,9 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> TokenRespon
 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
-    user = db.scalar(select(User).where(User.email == payload.email))
+    email_norm = payload.email.strip().lower()
+    _check_rate_limit(email_norm)
+    user = db.scalar(select(User).where(User.email == email_norm))
     if user is None or not pwd.verify(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid credentials")
     if not user.is_active:

@@ -50,7 +50,12 @@ export default function DrivesPage() {
 
   function onSearch(e) {
     e.preventDefault()
-    void load({ query, company, role })
+    void load({ query, company, role, status: isAdmin ? '' : 'open' })
+  }
+
+  function clearFilters() {
+    setQuery(''); setCompany(''); setRole('')
+    void load({ status: isAdmin ? '' : 'open' })
   }
 
   return (
@@ -69,9 +74,12 @@ export default function DrivesPage() {
           <Field label="Search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="python, remote…" />
           <Field label="Company" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Nimbus" />
           <Field label="Role" value={role} onChange={(e) => setRole(e.target.value)} placeholder="Engineer" />
-          <div className="flex items-end">
-            <Button type="submit" className="w-full">
+          <div className="flex items-end gap-2">
+            <Button type="submit" className="flex-1">
               Filter
+            </Button>
+            <Button type="button" onClick={clearFilters} className="bg-slate-600 hover:bg-slate-700">
+              Clear
             </Button>
           </div>
         </form>

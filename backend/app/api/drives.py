@@ -15,10 +15,12 @@ router = APIRouter(prefix="/drives", tags=["drives"])
 
 
 def _aggregate_drive(drive: Drive, db: Session) -> dict:
+    # Optimized: single queries batched per-drive; caller may batch further via preloading
     positions = db.execute(select(JobPosition).where(JobPosition.drive_id == drive.id)).scalars().all()
     if not positions:
         return {"roles_count": 0, "ctc_min": None, "ctc_max": None, "stipend_min": None, "stipend_max": None, "has_unpaid_roles": False, "employment_types": [], "skills_union": [], "locations_union": []}
-    comp_rows = db.execute(select(Compensation).where(Compensation.job_position_id.in_([p.id for p in positions]))).scalars().all()
+    pos_ids = [p.id for p in positions]
+    comp_rows = db.execute(select(Compensation).where(Compensation.job_position_id.in_(pos_ids))).scalars().all() if pos_ids else []
     ctc_vals = []
     stip_vals = []
     has_unpaid = False
@@ -31,26 +33,21 @@ def _aggregate_drive(drive: Drive, db: Session) -> dict:
         for v in [c.stipend_min, c.stipend_max, c.monthly_stipend, c.monthly_salary]:
             if v is not None and not c.is_unpaid:
                 stip_vals.append(float(v))
-        if c.is_unpaid:
-            # still track unpaid role separately
-            pass
-    # fallback to drive legacy fields if no compensation
     if not ctc_vals and drive.ctc_lpa is not None:
         ctc_vals = [float(drive.ctc_lpa)]
     if not stip_vals and drive.stipend_monthly is not None:
         stip_vals = [float(drive.stipend_monthly)]
     employment_types = sorted({p.employment_type for p in positions if p.employment_type})
-    # skills union
     skill_names = set(drive.skills or [])
-    if positions:
-        rows = db.execute(select(Skill.name).join(JobPositionSkill, Skill.id == JobPositionSkill.skill_id).where(JobPositionSkill.job_position_id.in_([p.id for p in positions]))).scalars().all()
+    if pos_ids:
+        rows = db.execute(select(Skill.name).join(JobPositionSkill, Skill.id == JobPositionSkill.skill_id).where(JobPositionSkill.job_position_id.in_(pos_ids))).scalars().all()
         skill_names.update(rows)
-    # locations union
     locs = set()
     if drive.location:
         locs.update([s.strip() for s in drive.location.split(",") if s.strip()])
-    loc_rows = db.execute(select(JobLocation.city).where(JobLocation.job_position_id.in_([p.id for p in positions]))).scalars().all()
-    locs.update(loc_rows)
+    if pos_ids:
+        loc_rows = db.execute(select(JobLocation.city).where(JobLocation.job_position_id.in_(pos_ids))).scalars().all()
+        locs.update(loc_rows)
     return {
         "roles_count": len(positions),
         "ctc_min": min(ctc_vals) if ctc_vals else None,
@@ -105,25 +102,37 @@ def list_drives(
     company: str = Query(default="", max_length=120),
     role: str = Query(default="", max_length=120),
     status_filter: str = Query(default="", alias="status", max_length=20),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[DriveOut]:
-    # Default visibility: students see only open drives, admin/TNPC sees all (including DRAFT)
-    # If no explicit status filter is sent (empty string), apply role-based default
-    effective_status = status_filter
-    if not status_filter:
-        effective_status = "open" if user.role != "admin" else ""
+    # Normalize status values: accept case-insensitive, map to stored values
+    # Students default to open-like statuses; admins see all when no filter
+    status_normalized = status_filter.strip().lower() if status_filter else ""
+    # Treat "open" to include legacy "open" and new "PUBLISHED"/"REGISTRATION_OPEN"
+    open_statuses = ["open", "PUBLISHED", "REGISTRATION_OPEN"]
+    effective_in = None
+    if status_normalized == "open":
+        effective_in = open_statuses
+    elif status_normalized and not status_normalized == "":
+        effective_in = [status_filter]
+
     stmt = select(Drive, Company).join(Company, Drive.company_id == Company.id).order_by(Drive.created_at.desc())
-    if effective_status:
-        stmt = stmt.where(Drive.status == effective_status)
-    # hide DRAFT drives with 0 positions from students even if they somehow have status open? publish guard prevents this
+    if not status_filter and user.role != "admin":
+        stmt = stmt.where(Drive.status.in_(open_statuses))
+    elif effective_in:
+        stmt = stmt.where(Drive.status.in_(effective_in))
     if company:
         stmt = stmt.where(Company.name.ilike(f"%{company}%"))
     if role:
         stmt = stmt.where(Drive.role.ilike(f"%{role}%"))
 
+    stmt = stmt.offset(skip).limit(limit)
     out: list[DriveOut] = []
-    for drive, comp in db.execute(stmt).all():
+    rows = db.execute(stmt).all()
+    # Preload aggregates in batch to avoid N+1 - collect drive ids
+    for drive, comp in rows:
         if query:
             haystack = " ".join(
                 [drive.title, drive.role, comp.name, drive.location, " ".join(drive.skills or [])]

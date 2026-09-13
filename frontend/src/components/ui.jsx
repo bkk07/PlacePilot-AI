@@ -50,9 +50,23 @@ export function Field({ label, ...props }) {
     <label className="block">
       <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
       <input
-        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+        className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-50"
         {...props}
       />
     </label>
+  )
+}
+
+export function Toast({ message, tone = 'green' }) {
+  if (!message) return null
+  const tones = {
+    green: 'border-green-200 bg-green-50 text-green-700',
+    red: 'border-red-200 bg-red-50 text-red-700',
+    amber: 'border-amber-200 bg-amber-50 text-amber-700',
+  }
+  return (
+    <div className={`mb-4 rounded-md border px-4 py-2 text-sm ${tones[tone] ?? tones.green}`}>
+      {message}
+    </div>
   )
 }

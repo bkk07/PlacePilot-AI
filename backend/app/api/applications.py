@@ -8,10 +8,39 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.db import get_db
-from app.db.models import Application, Drive, StudentProfile, User
+from app.db.models import Application, Branch, Drive, DriveEligibleBatch, DriveEligibleBranch, EligibilityCriteria, StudentProfile, User
 from app.schemas.api_schemas import ApplicationCreate, ApplicationOut, ApplicationStatusUpdate
 from app.services.application_state import InvalidTransition, transition
 from app.services.eligibility import evaluate_eligibility
+
+
+def _build_extended_criteria(db, drive_id):
+    crit = db.scalar(select(EligibilityCriteria).where(EligibilityCriteria.drive_id == drive_id))
+    branch_rows = db.execute(select(Branch.code).join(DriveEligibleBranch, DriveEligibleBranch.branch_id == Branch.id).where(DriveEligibleBranch.drive_id == drive_id)).scalars().all()
+    batch_rows = db.execute(select(DriveEligibleBatch.graduation_year).where(DriveEligibleBatch.drive_id == drive_id)).scalars().all()
+    extended: dict = {}
+    if crit:
+        if crit.minimum_cgpa is not None:
+            extended["minimum_cgpa"] = float(crit.minimum_cgpa)
+        if crit.maximum_backlogs is not None:
+            extended["maximum_backlogs"] = crit.maximum_backlogs
+        if crit.passing_year_from is not None:
+            extended["passing_year_from"] = crit.passing_year_from
+        if crit.passing_year_to is not None:
+            extended["passing_year_to"] = crit.passing_year_to
+        if crit.minimum_10th_percentage is not None:
+            extended["minimum_10th_percentage"] = float(crit.minimum_10th_percentage)
+        if crit.minimum_12th_percentage is not None:
+            extended["minimum_12th_percentage"] = float(crit.minimum_12th_percentage)
+        if crit.minimum_diploma_percentage is not None:
+            extended["minimum_diploma_percentage"] = float(crit.minimum_diploma_percentage)
+        if crit.backlogs_allowed is not None:
+            extended["backlogs_allowed"] = crit.backlogs_allowed
+    if branch_rows:
+        extended["eligible_branches"] = list(branch_rows)
+    if batch_rows:
+        extended["eligible_batches"] = list(batch_rows)
+    return extended
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 
@@ -56,12 +85,16 @@ def apply(
         "active_backlogs": profile.active_backlogs,
         "graduation_year": profile.graduation_year,
         "skills": profile.skills or [],
+        "tenth_percentage": float(profile.tenth_percentage) if profile.tenth_percentage is not None else None,
+        "twelfth_percentage": float(profile.twelfth_percentage) if profile.twelfth_percentage is not None else None,
+        "diploma_percentage": float(profile.diploma_percentage) if profile.diploma_percentage is not None else None,
     }
-    decision = evaluate_eligibility(student, {"rules": drive.rules or {}})
+    extended = _build_extended_criteria(db, drive.id)
+    decision = evaluate_eligibility(student, {"rules": drive.rules or {}, "extended": extended})
     if not decision.eligible:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"message": "not eligible for this drive", "reasons": decision.reasons},
+            detail={"message": "not eligible for this drive", "reasons": decision.reasons, "missing_requirements": decision.missing_requirements},
         )
 
     # support per-role application: if job_position_id supplied, check that combo
@@ -81,7 +114,7 @@ def apply(
 
     if payload.idempotency_key:
         dup = db.scalar(
-            select(Application).where(Application.idempotency_key == payload.idempotency_key)
+            select(Application).where(Application.idempotency_key == payload.idempotency_key, Application.student_id == user.id)
         )
         if dup is not None:
             return _app_out(dup, db.get(Drive, dup.drive_id))

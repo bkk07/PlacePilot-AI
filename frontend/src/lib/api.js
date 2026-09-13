@@ -35,11 +35,14 @@ async function request(path, options = {}) {
   const headers = { ...(options.headers ?? {}) }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
-  if (options.body) headers['Content-Type'] = 'application/json'
+  if (options.body && !(options.body instanceof FormData)) headers['Content-Type'] = 'application/json'
 
   const res = await fetch(`${BASE}${path}`, { ...options, headers })
   const data = parseBody(await res.text())
   if (!res.ok) {
+    if (res.status === 401) {
+      clearToken()
+    }
     const detail =
       data && typeof data === 'object' && 'detail' in data ? data.detail : data
     throw new ApiError(res.status, detail)
@@ -62,17 +65,22 @@ export const api = {
   uploadProfilePhoto: (file) => {
     const fd = new FormData()
     fd.append('file', file)
-    const token = getToken()
-    const headers = {}
-    if (token) headers.Authorization = `Bearer ${token}`
-    return fetch(`${BASE}/students/me/profile/photo`, { method: 'POST', headers, body: fd }).then(async (res) => {
-      const data = parseBody(await res.text())
-      if (!res.ok) throw new ApiError(res.status, data?.detail ?? data)
-      return data
-    })
+    return request('/students/me/profile/photo', { method: 'POST', body: fd })
   },
 
   getProfilePhotoUrl: () => `${BASE}/students/me/profile/photo`,
+
+  getProfilePhotoBlob: async () => {
+    const token = getToken()
+    const headers = {}
+    if (token) headers.Authorization = `Bearer ${token}`
+    const res = await fetch(`${BASE}/students/me/profile/photo`, { headers })
+    if (!res.ok) {
+      const data = parseBody(await res.text())
+      throw new ApiError(res.status, data?.detail ?? data)
+    }
+    return res.blob()
+  },
 
   checkEligibility: (driveId) => request(`/students/me/eligibility/${driveId}`),
 
@@ -81,6 +89,9 @@ export const api = {
     if (filters.query) params.set('query', filters.query)
     if (filters.company) params.set('company', filters.company)
     if (filters.role) params.set('role', filters.role)
+    if (filters.status) params.set('status', filters.status)
+    if (filters.skip != null) params.set('skip', String(filters.skip))
+    if (filters.limit != null) params.set('limit', String(filters.limit))
     const qs = params.toString()
     return request(`/drives${qs ? `?${qs}` : ''}`)
   },
@@ -166,12 +177,18 @@ export function errorMessage(err) {
   if (err instanceof ApiError) {
     const detail = err.detail
     if (typeof detail === 'string') return detail
-    if (detail && typeof detail === 'object' && 'message' in detail) {
-      return String(detail.message)
-    }
-    if (Array.isArray(detail) && detail.length > 0) {
-      const first = detail[0]
-      if (first?.msg) return first.msg
+    if (detail && typeof detail === 'object') {
+      if ('message' in detail && typeof detail.message === 'string') return detail.message
+      if ('reasons' in detail && Array.isArray(detail.reasons)) return detail.reasons.join('; ')
+      if (Array.isArray(detail) && detail.length > 0) {
+        const first = detail[0]
+        if (first?.msg) return detail.map((d) => d.msg).join('; ')
+      }
+      try {
+        return JSON.stringify(detail)
+      } catch {
+        return `Request failed (${err.status})`
+      }
     }
     return `Request failed (${err.status})`
   }

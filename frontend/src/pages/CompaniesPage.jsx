@@ -169,31 +169,37 @@ export default function CompaniesPage() {
       <ErrorBanner message={error} />
       {notice && <div className="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700">{notice}</div>}
 
-      <Card className="mb-8">
-        <h2 className="mb-3 font-semibold">Create Company</h2>
-        <form onSubmit={onCreate} className="grid gap-3 sm:grid-cols-2">
-          <Field label="Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <Field label="Legal name" value={form.legal_name} onChange={(e) => setForm({ ...form, legal_name: e.target.value })} />
-          <Field label="Website" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://" />
-          <Field label="Industry" value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} placeholder="IT Services" />
-          <Field label="Headquarters" value={form.headquarters} onChange={(e) => setForm({ ...form, headquarters: e.target.value })} placeholder="Bangalore" />
-          <label className="block"><span className="mb-1 block text-sm font-medium text-slate-700">Company size</span>
-            <select value={form.company_size} onChange={(e) => setForm({ ...form, company_size: e.target.value })} className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
-              <option value="">Select size</option>
-              <option value="1-10">1-10</option>
-              <option value="11-50">11-50</option>
-              <option value="51-200">51-200</option>
-              <option value="201-500">201-500</option>
-              <option value="501-1000">501-1000</option>
-              <option value="1000+">1000+</option>
-            </select>
-          </label>
-          <label className="block sm:col-span-2"><span className="mb-1 block text-sm font-medium text-slate-700">Description</span>
-            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} placeholder="Short company overview" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-          </label>
-          <div className="flex items-end sm:col-span-2"><Button type="submit">Create</Button></div>
-        </form>
-      </Card>
+      {isAdmin ? (
+        <Card className="mb-8">
+          <h2 className="mb-3 font-semibold">Create Company</h2>
+          <form onSubmit={onCreate} className="grid gap-3 sm:grid-cols-2">
+            <Field label="Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            <Field label="Legal name" value={form.legal_name} onChange={(e) => setForm({ ...form, legal_name: e.target.value })} />
+            <Field label="Website" type="url" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://" />
+            <Field label="Industry" value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} placeholder="IT Services" />
+            <Field label="Headquarters" value={form.headquarters} onChange={(e) => setForm({ ...form, headquarters: e.target.value })} placeholder="Bangalore" />
+            <label className="block"><span className="mb-1 block text-sm font-medium text-slate-700">Company size</span>
+              <select value={form.company_size} onChange={(e) => setForm({ ...form, company_size: e.target.value })} className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                <option value="">Select size</option>
+                <option value="1-10">1-10</option>
+                <option value="11-50">11-50</option>
+                <option value="51-200">51-200</option>
+                <option value="201-500">201-500</option>
+                <option value="501-1000">501-1000</option>
+                <option value="1000+">1000+</option>
+              </select>
+            </label>
+            <label className="block sm:col-span-2"><span className="mb-1 block text-sm font-medium text-slate-700">Description</span>
+              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} placeholder="Short company overview" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+            </label>
+            <div className="flex items-end sm:col-span-2"><Button type="submit">Create</Button></div>
+          </form>
+        </Card>
+      ) : (
+        <Card className="mb-8 border-dashed bg-slate-50">
+          <p className="text-sm text-slate-600">Only TNPC Admin can create companies. Student view is read-only.</p>
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         {companies.map((c) => (
